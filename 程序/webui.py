@@ -241,26 +241,49 @@ class Handler(BaseHTTPRequestHandler):
         self.send_error(404)
 
 
-def main():
-    port = 8763
-    for cand in range(8763, 8793):
+def _free_port(start: int = 8763, end: int = 8793) -> int:
+    for cand in range(start, end):
         with socket.socket() as s:
             if s.connect_ex(("127.0.0.1", cand)) != 0:
-                port = cand
-                break
+                return cand
+    return start
+
+
+def main(app_window: bool = True):
+    """启动本地服务。
+
+    app_window=True 时优先用原生应用窗口（pywebview，无地址栏），
+    装不上或启动失败则自动回退到系统浏览器——两条路走的是同一套界面。
+    """
+    port = _free_port()
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/"
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+
+    if app_window:
+        try:
+            import webview
+            print("  正在打开应用窗口……（关闭窗口即退出）")
+            webview.create_window("PDF 论文翻译", url, width=1080, height=860,
+                                  min_size=(820, 640))
+            webview.start()          # 阻塞至窗口关闭
+            return
+        except Exception as e:  # noqa: BLE001
+            print(f"  [i] 应用窗口不可用（{e}），改用系统浏览器。")
+
     print("=" * 52)
-    print("  PDF 论文翻译 · 网页版已启动")
+    print("  PDF 论文翻译已启动")
     print(f"  地址：{url}（仅本机可访问）")
     print("  关闭本窗口即退出程序。")
     print("=" * 52)
     threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:
-        srv.serve_forever()
+        while True:
+            threading.Event().wait(3600)
     except KeyboardInterrupt:
         pass
 
 
 if __name__ == "__main__":
-    main()
+    # --browser 强制走系统浏览器（应用窗口异常时的退路，也便于调试）
+    main(app_window="--browser" not in sys.argv)

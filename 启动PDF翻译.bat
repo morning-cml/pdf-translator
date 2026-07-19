@@ -33,7 +33,7 @@ if errorlevel 1 (
   echo.
   echo    首次运行，正在自动安装所需组件，请稍候几分钟……
   echo.
-  %PY% -m pip install pdfplumber reportlab pypdf requests pymupdf fonttools rapidocr-onnxruntime python-docx
+  %PY% -m pip install pdfplumber reportlab pypdf requests pymupdf fonttools rapidocr-onnxruntime python-docx pywebview
   if errorlevel 1 (
     echo.
     echo    [x] 组件安装失败，请检查网络连接后重新双击本文件。
@@ -49,9 +49,21 @@ if errorlevel 1 %PY% -m pip install pymupdf fonttools
 %PY% -c "import rapidocr_onnxruntime" >nul 2>nul
 if errorlevel 1 %PY% -m pip install rapidocr-onnxruntime
 
+rem 应用窗口组件（可选）：装上则用无边框原生窗口，否则回退系统浏览器
+%PY% -c "import webview" >nul 2>nul
+if errorlevel 1 %PY% -m pip install pywebview
+
+%PY% -c "import webview" >nul 2>nul
+if errorlevel 1 goto browser_mode
+
+echo    正在打开应用窗口……
+start "" %PY%w webui.py
+exit /b 0
+
+:browser_mode
 echo.
 echo    正在启动界面，浏览器将自动打开……
 echo    【提示】关闭本窗口即退出程序。
 echo.
-%PY% webui.py
+%PY% webui.py --browser
 exit /b 0

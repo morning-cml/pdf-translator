@@ -1,8 +1,8 @@
 # PDF 论文翻译工具（英文 → 中文）— 技术说明
 
-把英文论文 PDF 翻译成中文 PDF，**完整保留图片、公式、表格与排版**，译文落在
-原文对应位置。支持扫描版（本地 OCR）、双语对照输出、持久化翻译缓存、多翻译
-服务（任意 OpenAI 兼容接口）。
+把英文文档（**PDF / Word .docx**）翻译成中文，**完整保留图片、公式、表格与
+排版**，译文落在原文对应位置。支持扫描版 PDF（本地 OCR）、表格逐单元格翻译、
+双语对照输出、持久化翻译缓存、多翻译服务（任意 OpenAI 兼容接口）。
 
 > **使用者请看外层的《使用说明.html》**（双击浏览器打开）。
 > 本文件面向开发/维护者；完整开发史与算法细节见 `docs/交接说明_HANDOFF.md`，
@@ -11,8 +11,10 @@
 ## 快速开始（开发者）
 
 ```bash
-py -m pip install -r requirements.txt     # 依赖（含 OCR；文件对话框用自带 tkinter）
-py webui.py                               # 【正式】网页界面（自动开浏览器）
+py -m pip install -r requirements.txt     # 依赖（含 OCR/DOCX；文件对话框用自带 tkinter）
+py webui.py                               # 【正式】原生应用窗口（pywebview）
+py webui.py --browser                     # 同一界面，改用系统浏览器（调试用）
+py -m pytest tests -q                     # 测试套件（91 项）
 py run_gui.py                             # 备用 tkinter 界面（已冻结，勿加新功能）
 py translate_cli.py "论文.pdf" --mock     # 离线跑通版式（不花 token）
 py translate_cli.py "论文.pdf" --pages 2  # 真实试译前 2 页
@@ -50,7 +52,8 @@ py samples/make_scanned.py                # 生成扫描版样张 → 回归 OCR
 | `src/pdf_writer_fitz.py` | 【首选】精确抹除+CJK 嵌入+公式矢量回贴+双语拼页 |
 | `src/pdf_writer.py` | 【兜底】reportlab 行矩形覆盖+位图回贴 |
 | `src/textfix.py` | 译后中西文加空格（盘古之白） |
-| `src/pipeline.py` | 编排；跨栏配对；成本预估；后端选择与回退 |
+| `src/docx_translator.py` | Word 文档翻译（按 run 就地替换，样式天然保留） |
+| `src/pipeline.py` | 编排；格式分派；跨栏配对；成本预估；后端选择与回退 |
 | `src/gui.py` | tkinter 界面（服务预设/领域/试译/三种输出模式） |
 | `src/config.py` | 配置加载/保存（ROOT = src/ 上一级） |
 

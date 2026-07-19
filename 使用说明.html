@@ -31,25 +31,29 @@
 <body>
 
 <h1>PDF 论文翻译工具 · 使用说明</h1>
-<p>把<b>英文论文 PDF</b> 翻译成<b>中文 PDF</b>：图片、公式、表格、排版原样保留，
-译文出现在原文对应的位置；参考文献按学术惯例保持原样。支持扫描版（自动 OCR）。
-翻译由大模型完成（默认 DeepSeek，也可用本地免费模型）。</p>
+<p>把<b>英文文档</b>翻译成<b>中文</b>，支持 <b>PDF</b> 与 <b>Word（.docx）</b>：
+图片、公式、表格、排版原样保留，译文出现在原文对应的位置；参考文献按学术惯例
+保持原样。支持扫描版 PDF（自动 OCR）。翻译由大模型完成（默认 DeepSeek，
+也可用本地免费模型）。</p>
 
 <h2>一、第一次使用（只需三步）</h2>
 <div class="step"><b class="n">第 1 步</b>双击 <span class="path">启动PDF翻译.bat</span>。
-首次会自动安装所需组件（需联网，几分钟），随后<b>浏览器会自动打开操作界面</b>。
-<br>启动时会出现一个黑色小窗口，那是程序本体，<b>请勿关闭</b>；用完后关掉它即退出程序。</div>
+首次会自动安装所需组件（需联网，几分钟），随后<b>自动弹出程序窗口</b>，
+关掉窗口即退出。
+<br><span class="muted">（若你的电脑缺少窗口组件，会改用浏览器打开界面，
+此时会有一个黑色小窗口，那是程序本体，请勿关闭。）</span></div>
 <div class="step"><b class="n">第 2 步</b>填入 API Key。到
 <span class="path">https://platform.deepseek.com/api_keys</span>
 注册并创建一个 Key（形如 sk-…，需充值少量金额），粘贴到界面"API Key"栏，
 勾选"记住"。点"测试连接"确认可用。</div>
-<div class="step"><b class="n">第 3 步</b>点"添加…"选择 PDF（可多选），点
-"▶ 开始翻译"。完成后点"打开 PDF"即可阅读。</div>
+<div class="step"><b class="n">第 3 步</b>点"＋ 选择文件…"挑选文档
+（PDF 或 Word，可多选），点"▶ 开始翻译"。完成后点"打开 PDF"即可阅读。</div>
 <div class="tip">建议第一次先把"试译前 N 页"设为 <b>2</b>，花几分钱看看效果，
 满意后改回 0 翻整篇——已试译的部分有缓存，<b>不会重复收费</b>。</div>
 
 <h2>二、翻译好的文件在哪？</h2>
-<p>默认生成在<b>原 PDF 的同一个文件夹</b>，文件名规则：</p>
+<p>默认生成在<b>原文件的同一个文件夹</b>（也可在界面里指定输出文件夹），
+文件名规则：</p>
 <table>
 <tr><th>输出模式</th><th>生成文件名</th><th>适合什么时候用</th></tr>
 <tr><td>纯中文</td><td><code>原名_translation.pdf</code></td>
@@ -59,6 +63,11 @@
 <tr><td>双语·左右对照</td><td><code>原名_translation_sidebyside.pdf</code></td>
     <td>屏幕上核对原文。每页变成宽页：左半原文、右半译文，逐页对齐。</td></tr>
 </table>
+<div class="tip"><b>Word 文档</b>（.docx）同样支持：标题层级、项目符号、表格、
+页眉页脚、图片位置全部保留。"纯中文"直接替换原文；两种"双语"模式都会
+<b>在每段原文下方插入译文段</b>（Word 没有"左右对照"的版面概念），
+输出为 <code>原名_translation.docx</code> 或 <code>…_translation_bilingual.docx</code>。
+<br>老式 <code>.doc</code> 请先用 Word 另存为 <code>.docx</code>。</div>
 
 <h2>三、界面各选项是什么意思</h2>
 <table>

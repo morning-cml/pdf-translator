@@ -19,6 +19,10 @@ rapidocr-onnxruntime>=1.4.0
 # Word (.docx) translation support. MIT licensed - safe for commercial use.
 python-docx>=1.1.0
 
+# Native app window for the web UI (BSD). Optional: without it the UI opens
+# in the default browser instead. Uses the system WebView2 on Windows.
+pywebview>=5.0
+
 # Test suite (development only): python -m pytest tests -q
 # pytest>=8.0
 
