@@ -46,6 +46,8 @@ class BaseTranslator:
         self.ph_failures = 0    # 占位符校验失败（已回退原文）的段数
         self.failed_texts = 0   # 网络/服务失败降级（已回退原文）的段数（T2）
         self.cache_hits = 0     # 持久缓存命中段数（T1）
+        self.quality_flags = 0  # 质量自检命中并触发重译的段数（B3）
+        self.quality_fixed = 0  # 重译后通过自检的段数（B3）
         # T1 持久化缓存：persist 为 TransCache 实例；scope 参与键（模型/领域/上下文）
         self.persist = persist
         self.cache_scope = cache_scope
@@ -57,6 +59,32 @@ class BaseTranslator:
     # 子类可实现「占位符丢失后的强化重试」；返回 None 表示不支持
     def _translate_strict(self, text: str, glossary_block: str) -> Optional[str]:
         return None
+
+    # 子类可实现「质量自检未过后的定向重译」；返回 None 表示不支持
+    def _translate_fix(self, text: str, problem: str,
+                       glossary_block: str) -> Optional[str]:
+        return None
+
+    def _quality_pass(self, src: str, tgt: str, glossary) -> str:
+        """B3：本地规则自检，命中则定向重译一次，取更好的那个。
+
+        重译结果必须同时通过「占位符校验」与「质量自检」才采纳；否则保留
+        首次译文（它通常仍可用，强行替换反而可能更差）。
+        """
+        from .quality import check, describe
+        issues = check(src, tgt)
+        if not issues:
+            return tgt
+        self.quality_flags += 1
+        try:
+            fixed = self._translate_fix(src, describe(issues),
+                                        glossary.prompt_block([src]))
+        except Exception:  # noqa: BLE001
+            fixed = None
+        if fixed and _ph_ok(src, fixed) and not check(src, fixed):
+            self.quality_fixed += 1
+            return fixed
+        return tgt
 
     # 子类实现：翻译一批段落，返回与输入等长的译文列表
     def _translate_batch(self, batch: List[str], glossary_block: str) -> List[str]:
@@ -122,7 +150,7 @@ class BaseTranslator:
                         continue
                     for src, tgt in zip(batch, results):
                         if _ph_ok(src, tgt):
-                            self._store(src, tgt)
+                            self._store(src, self._quality_pass(src, tgt, glossary))
                             continue
                         # 占位符丢失/变形 → 单段强化重试一次
                         retry = None
@@ -131,7 +159,7 @@ class BaseTranslator:
                         except Exception:  # noqa: BLE001
                             retry = None
                         if retry is not None and _ph_ok(src, retry):
-                            self._store(src, retry)
+                            self._store(src, self._quality_pass(src, retry, glossary))
                         else:
                             # 保底：保留原文，公式位置绝不丢失；不写持久缓存
                             self.ph_failures += 1
@@ -300,6 +328,23 @@ class DeepSeekTranslator(BaseTranslator):
         if glossary_block:
             instruction += glossary_block + "\n\n"
         instruction += "把下面这段文字翻译成简体中文，只输出译文：\n\n" + text
+        return self._chat([
+            {"role": "system", "content": self.system_prompt},
+            {"role": "user", "content": instruction},
+        ]).strip()
+
+    def _translate_fix(self, text: str, problem: str,
+                       glossary_block: str) -> Optional[str]:
+        """质量自检未过后的定向重译：把具体问题告诉模型，让它重来一次。"""
+        instruction = (
+            "上一次翻译存在问题：" + problem + "。\n"
+            "请重新把下面这段文字完整、准确地翻译成简体中文，只输出译文本身，"
+            "不要任何说明或解释。\n\n")
+        if "⟦F" in text:
+            instruction = _PH_NOTE + instruction
+        if glossary_block:
+            instruction += glossary_block + "\n\n"
+        instruction += text
         return self._chat([
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": instruction},

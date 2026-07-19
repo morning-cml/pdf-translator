@@ -332,6 +332,11 @@ def translate_pdf(
         if failed:
             report(f"注意：{failed} 段因网络/服务错误未翻译，已保留原文——"
                    "重新运行本任务即可补齐（已译段走缓存不重复计费）", 0.90)
+        flags = getattr(translator, "quality_flags", 0)
+        if flags:
+            fixed = getattr(translator, "quality_fixed", 0)
+            report(f"译文自检：{flags} 段发现异常（漏译/数字错漏等），"
+                   f"重译修正 {fixed} 段", 0.90)
         ph_failed = getattr(translator, "ph_failures", 0)
         if ph_failed:
             report(f"提示：{ph_failed} 段公式占位符校验未通过，已保留原文以保住公式位置", 0.90)
