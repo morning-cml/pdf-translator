@@ -13,3 +13,7 @@ cache/
 selftest_out/
 # 版面分析模型（72MB，按 docs/前端设计.md 或 handoff 指引单独下载）
 models/
+# 打包产物（体积大且可随时重建；发布时上传到 GitHub Releases 而非仓库）
+build/
+release/
+*.spec

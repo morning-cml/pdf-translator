@@ -17,8 +17,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_MODEL = ROOT / "models" / "doclayout_yolo_docstructbench_imgsz1024.onnx"
+from .paths import data_file, user_dir
+
+MODEL_NAME = "doclayout_yolo_docstructbench_imgsz1024.onnx"
+ROOT = user_dir()
+# 模型体积大（72MB），既可随程序分发，也可由用户自行放入用户数据目录
+DEFAULT_MODEL = data_file("models", MODEL_NAME)
 
 _IMGSZ = 1024
 _CONF = 0.40

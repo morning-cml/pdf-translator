@@ -147,12 +147,14 @@ def make_translator(cfg: Config, mock: bool = False,
     persist = None
     scope = ""
     if getattr(cfg, "use_cache", True):
-        from .config import ROOT
-        from .transcache import TransCache
         import hashlib
+
+        from .paths import user_path
+        from .transcache import TransCache
         ctx_h = hashlib.sha1(doc_context.encode("utf-8")).hexdigest()[:10]
         scope = f"{cfg.model}|{getattr(cfg, 'domain', '')}|{ctx_h}"
-        persist = TransCache(ROOT / "cache" / "translations.json")
+        # 缓存写用户目录：打包后临时解包目录会被清空，缓存必须持久保留
+        persist = TransCache(user_path("cache", "translations.json"))
     return DeepSeekTranslator(
         api_key=cfg.api_key,
         model=cfg.model,

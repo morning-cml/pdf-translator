@@ -55,7 +55,9 @@ def _script_runs(text: str):
         runs.append((cur_ascii, cur))
     return runs
 
-ROOT = Path(__file__).resolve().parent.parent
+from .paths import data_file, user_dir
+
+ROOT = user_dir()   # 用户可把字体放进用户数据目录的 fonts/
 
 
 class BackendUnsupported(Exception):
@@ -75,10 +77,10 @@ def find_font_file(explicit: str = "") -> Optional[str]:
     if explicit:
         p = Path(explicit)
         if not p.is_absolute():
-            p = ROOT / p
+            p = data_file(*Path(explicit).parts)
         if p.exists():
             return str(p)
-    fdir = ROOT / "fonts"
+    fdir = data_file("fonts")
     if not fdir.is_dir():
         return None
     cands = [p for p in sorted(fdir.iterdir())

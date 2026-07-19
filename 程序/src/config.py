@@ -14,9 +14,12 @@ from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Optional
 
-# 项目根目录（本文件位于 <root>/src/config.py）
-ROOT = Path(__file__).resolve().parent.parent
-CONFIG_PATH = ROOT / "config.json"
+from .paths import data_file, resource_dir, user_path
+
+# 只读资源根（源码运行=程序/；打包运行=解包目录）
+ROOT = resource_dir()
+# config.json 必须写在**可写且跨版本保留**的位置，打包后不能落在临时解包目录
+CONFIG_PATH = user_path("config.json")
 
 DEFAULTS = {
     "api_key": "",
@@ -76,7 +79,10 @@ class Config:
 
     def resolved_glossary_path(self) -> Path:
         p = Path(self.glossary_path)
-        return p if p.is_absolute() else (ROOT / p)
+        if p.is_absolute():
+            return p
+        # 相对路径：优先用用户自己编辑过的副本，否则用随程序分发的默认术语库
+        return data_file(*p.parts)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -117,6 +123,7 @@ def load_config(**overrides) -> Config:
 def save_config(cfg: Config) -> None:
     """把当前配置写入 config.json（含 API Key，请勿提交到版本库）。"""
     data = json.dumps(cfg.to_dict(), ensure_ascii=False, indent=2)
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     tmp = CONFIG_PATH.with_name(CONFIG_PATH.name + ".tmp")
     tmp.write_text(data, encoding="utf-8")
     os.replace(tmp, CONFIG_PATH)  # 原子替换，避免写一半导致文件损坏

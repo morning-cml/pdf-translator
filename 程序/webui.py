@@ -19,9 +19,13 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 ROOT = Path(__file__).resolve().parent
-WEB = ROOT / "web"
 sys.path.insert(0, str(ROOT))
-os.chdir(ROOT)
+if not getattr(sys, "frozen", False):
+    os.chdir(ROOT)
+
+from src.paths import resource  # noqa: E402
+
+WEB = resource("web")           # 打包后指向解包目录内的前端资源
 
 from src.config import load_config, save_config  # noqa: E402
 from src.pipeline import (SUPPORTED_EXTS, CancelledError,  # noqa: E402

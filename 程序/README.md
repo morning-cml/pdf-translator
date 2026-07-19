@@ -86,6 +86,30 @@ Translation/                       # 外层 = 用户桌面工作区
    └─ src/                         # 见模块一览
 ```
 
+## 打包发布（build.py）
+
+```bash
+py build.py                     # 完整版（含 OCR）→ release/v1.0.0/
+py build.py --profile lite      # 精简版（无 OCR，体积小很多）
+py build.py --set-version 1.1.0 # 改版本号后再构建
+py build.py --zip               # 额外产出 zip
+py build.py --list              # 查看已构建的历史版本
+py build.py --clean             # 清理中间产物
+```
+
+- **版本唯一真源**：`src/version.py`；Windows 文件属性、界面关于、
+  `build_info.json` 全部读它。
+- **多版本互不干扰**：产物落在 `release/v<版本>/`，含 exe 文件夹、zip、
+  `SHA256SUMS.txt`、`build_info.json`（版本/git 提交/时间/profile）。
+- **图标自动生成**：从皮肤里的原创吉祥物 SVG 渲染成多尺寸 `.ico`，无需美术资源。
+- **路径隔离**（`src/paths.py`）：只读资源走 `sys._MEIPASS`；配置/缓存/模型/
+  字体写到 **exe 同级 `data/`**（便携），该处不可写时退回 `%APPDATA%`。
+  ⚠️ 用户数据绝不能落在 `_MEIPASS`——那是临时目录，退出即删。
+- **关于"防逆向"**：本项目为 AGPL-3.0，分发时必须提供完整源码，故混淆无意义
+  且可能违反许可，`--obfuscate` 会被显式忽略并给出提示。正当加固为：不打包
+  任何密钥、入包的是字节码、产出 SHA256 清单、预留 `--sign` 代码签名钩子
+  （签名才是对抗"被二次打包投毒"的正解）。
+
 ## 界面策略（2026-07-19 起）
 
 **网页版是唯一正式界面**，新功能只加在 `web/` + `webui.py`。tkinter 版
