@@ -204,6 +204,32 @@ def _estimate_line(translator, texts, cfg: Config) -> str:
     return line
 
 
+SUPPORTED_EXTS = (".pdf", ".docx")
+
+
+def translate_document(input_path: str, output_path: str, cfg: Config, **kw) -> dict:
+    """按扩展名分派到对应格式的翻译器（PDF / DOCX）。
+
+    各入口（CLI / 网页版）统一调用本函数，新增格式只需在此登记一处。
+    """
+    ext = Path(input_path).suffix.lower()
+    if ext == ".docx":
+        from .docx_translator import translate_docx
+        return translate_docx(input_path, output_path, cfg, **kw)
+    if ext == ".doc":
+        raise TranslatorError(
+            "旧版 .doc 格式不支持，请先用 Word 另存为 .docx 后再翻译。")
+    return translate_pdf(input_path, output_path, cfg, **kw)
+
+
+def output_suffix(mode: str, ext: str = ".pdf") -> str:
+    """统一的输出文件名后缀规则（各入口共用，避免命名不一致）。"""
+    if ext.lower() == ".docx":
+        return "_translation_bilingual" if mode != "translated" else "_translation"
+    return {"bilingual": "_translation_bilingual",
+            "sidebyside": "_translation_sidebyside"}.get(mode, "_translation")
+
+
 def check_connection(cfg: Config) -> Tuple[bool, str]:
     """用一小段文本快速验证 API Key / 模型是否可用。返回 (是否成功, 提示)。"""
     try:

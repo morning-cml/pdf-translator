@@ -16,4 +16,10 @@ fonttools>=4.40.0
 # Optional: without it, scanned PDFs are reported with an install hint.
 rapidocr-onnxruntime>=1.4.0
 
+# Word (.docx) translation support. MIT licensed - safe for commercial use.
+python-docx>=1.1.0
+
+# Test suite (development only): python -m pytest tests -q
+# pytest>=8.0
+
 # The GUI uses Python's built-in tkinter (no extra install needed).

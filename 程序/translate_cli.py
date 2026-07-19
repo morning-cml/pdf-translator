@@ -13,13 +13,13 @@ import sys
 from pathlib import Path
 
 from src.config import load_config
-from src.pipeline import translate_pdf
+from src.pipeline import output_suffix, translate_document
 from src.translator import TranslatorError
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="PDF 科研论文英译中工具")
-    ap.add_argument("input", help="输入 PDF 路径")
+    ap = argparse.ArgumentParser(description="科研文档英译中工具（PDF / Word）")
+    ap.add_argument("input", help="输入文件路径（.pdf 或 .docx）")
     ap.add_argument("-o", "--output", help="输出 PDF 路径（默认 <输入名>_zh.pdf）")
     ap.add_argument("--mode", choices=["translated", "bilingual", "sidebyside"],
                     help="translated=纯译文；bilingual=双语·前后页；sidebyside=双语·左右对照宽页")
@@ -41,7 +41,13 @@ def main() -> int:
     if not in_path.exists():
         print(f"找不到输入文件：{in_path}")
         return 1
-    out_path = Path(args.output) if args.output else in_path.with_name(in_path.stem + "_translation.pdf")
+    ext = in_path.suffix.lower()
+    if args.output:
+        out_path = Path(args.output)
+    else:
+        mode = args.mode or "translated"
+        out_path = in_path.with_name(
+            in_path.stem + output_suffix(mode, ext) + ext)
 
     cfg = load_config(
         output_mode=args.mode,
@@ -59,11 +65,13 @@ def main() -> int:
         print(f"[{int(frac * 100):3d}%] {msg}")
 
     try:
-        res = translate_pdf(str(in_path), str(out_path), cfg, mock=args.mock, progress=progress)
+        res = translate_document(str(in_path), str(out_path), cfg,
+                                 mock=args.mock, progress=progress)
     except TranslatorError as e:
         print(f"\n翻译失败：{e}")
         return 2
-    print(f"\n完成：{res['pages']} 页，{res['blocks']} 段，输出 → {res['output']}"
+    scope = f"{res['pages']} 页，" if res.get("pages") else ""
+    print(f"\n完成：{scope}{res['blocks']} 段，输出 → {res['output']}"
           f"（模式：{res['mode']}，后端：{res.get('backend', '?')}）")
     return 0
 

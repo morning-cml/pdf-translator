@@ -24,7 +24,8 @@ sys.path.insert(0, str(ROOT))
 os.chdir(ROOT)
 
 from src.config import load_config, save_config  # noqa: E402
-from src.pipeline import CancelledError, check_connection, translate_pdf  # noqa: E402
+from src.pipeline import (SUPPORTED_EXTS, CancelledError,  # noqa: E402
+                          check_connection, output_suffix, translate_document)
 
 JOBS: dict = {}
 JOBS_LOCK = threading.Lock()
@@ -42,10 +43,9 @@ _MIME = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
 
 def _out_path(src: str, mode: str, outdir: str = "") -> str:
     p = Path(src)
-    suffix = {"bilingual": "_translation_bilingual",
-              "sidebyside": "_translation_sidebyside"}.get(mode, "_translation")
+    ext = p.suffix.lower()
     base = Path(outdir) if outdir else p.parent
-    return str(base / (p.stem + suffix + ".pdf"))
+    return str(base / (p.stem + output_suffix(mode, ext) + ext))
 
 
 def _run_job(job_id: str, files: list, overrides: dict, mock: bool,
@@ -66,7 +66,7 @@ def _run_job(job_id: str, files: list, overrides: dict, mock: bool,
             base, span = i / n, 1 / n
             job["log"].append(f"—— [{i + 1}/{n}] {Path(f).name} ——")
             out = _out_path(f, cfg.output_mode, outdir)
-            res = translate_pdf(
+            res = translate_document(
                 f, out, cfg, mock=mock,
                 progress=lambda m, fr: log(m, fr, base, span),
                 should_cancel=job["cancel"].is_set)
@@ -103,7 +103,9 @@ def _pick(kind: str = "pdf") -> list:
                 d = filedialog.askdirectory(title="选择输出文件夹")
                 return [d] if d else []
             paths = filedialog.askopenfilenames(
-                title="选择英文 PDF", filetypes=[("PDF", "*.pdf")])
+                title="选择要翻译的文档",
+                filetypes=[("支持的文档", "*.pdf;*.docx"),
+                           ("PDF", "*.pdf"), ("Word 文档", "*.docx")])
             return [str(p) for p in paths]
         finally:
             root.destroy()
@@ -199,9 +201,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": ok, "message": msg})
 
         if path == "/api/jobs":
-            files = [f for f in body.get("files", []) if Path(f).is_file()]
+            files = [f for f in body.get("files", []) if Path(f).is_file()
+                     and Path(f).suffix.lower() in SUPPORTED_EXTS]
             if not files:
-                return self._json({"error": "没有有效的 PDF 文件"}, 400)
+                return self._json(
+                    {"error": "没有有效的文档（支持 .pdf 与 .docx）"}, 400)
             with JOBS_LOCK:
                 if any(j["status"] == "running" for j in JOBS.values()):
                     return self._json({"error": "已有任务在进行中"}, 409)
