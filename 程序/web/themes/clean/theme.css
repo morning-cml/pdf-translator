@@ -1,0 +1,31 @@
+/* ============================================================
+   皮肤：清爽白（clean）— 极简中性主题。
+   作用：① 喜欢朴素界面的用户；② 作为皮肤契约的"最小实现"样板，
+   新皮肤照抄本文件的令牌清单即可保证不漏项。
+   ============================================================ */
+
+:root {
+  --c-bg: #f2f4f7;
+  --c-bg-deco: none;
+  --c-surface: #ffffff;
+  --c-surface-2: #f6f7f9;
+  --c-text: #23272e;
+  --c-text-muted: #6b7280;
+  --c-primary: #2563eb;
+  --c-primary-text: #ffffff;
+  --c-accent: #f59e0b;
+  --c-danger: #dc2626;
+  --c-ok: #16a34a;
+  --c-border: #d8dce3;
+  --radius: 10px;
+  --radius-lg: 16px;
+  --shadow: 0 2px 10px rgba(0, 0, 0, .07);
+  --font-ui: "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+  --font-display: var(--font-ui);
+}
+
+/* 中性文档图标作吉祥物（内联 SVG 原创） */
+.mascot {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='14' y='6' width='36' height='52' rx='6' fill='white' stroke='%232563eb' stroke-width='3'/%3E%3Cpath d='M22 20h20M22 28h20M22 36h12' stroke='%2394a3b8' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='44' cy='44' r='11' fill='%232563eb'/%3E%3Cpath d='M39 44h10M44 39v10' stroke='white' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}

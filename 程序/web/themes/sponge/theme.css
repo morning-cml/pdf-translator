@@ -1,0 +1,91 @@
+/* ============================================================
+   皮肤：海绵泡泡（sponge）
+   原创卡通风格：亮黄多孔海绵 + 海底气泡 + 珊瑚色点缀。
+   仅定义设计令牌与装饰；不改布局、不含 JS。（角色为本项目原创
+   绘制的"泡泡海绵"，非任何受版权保护的现成形象。）
+   ============================================================ */
+
+:root {
+  --c-bg: #8ed8f0;
+  --c-bg-deco: linear-gradient(180deg, #aee7f8 0%, #7fd0ec 45%, #5db9e0 100%);
+  --c-surface: #fffef7;
+  --c-surface-2: #fdf6d8;
+  --c-text: #4a3200;
+  --c-text-muted: #9c7c2f;
+  --c-primary: #ffd93d;
+  --c-primary-text: #5b3d00;
+  --c-accent: #ff8a5c;
+  --c-danger: #e5533c;
+  --c-ok: #3cb371;
+  --c-border: #e8c95a;
+  --radius: 14px;
+  --radius-lg: 26px;
+  --shadow: 0 6px 0 rgba(94, 66, 0, .14);
+  --font-ui: "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  --font-display: "华文琥珀", "幼圆", "Microsoft YaHei UI", sans-serif;
+}
+
+/* ---- 海底气泡背景（两层视差，缓缓上浮）---- */
+body::before, body::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+}
+body::before {
+  background-image:
+    radial-gradient(circle at 30% 100%, rgba(255,255,255,.55) 0 6px, transparent 7px),
+    radial-gradient(circle at 70% 100%, rgba(255,255,255,.4) 0 4px, transparent 5px),
+    radial-gradient(circle at 50% 100%, rgba(255,255,255,.3) 0 9px, transparent 10px);
+  background-size: 340px 520px, 260px 640px, 480px 780px;
+  animation: bubbles-up 26s linear infinite;
+  opacity: .8;
+}
+body::after {
+  background-image:
+    radial-gradient(circle at 15% 100%, rgba(255,255,255,.35) 0 3px, transparent 4px),
+    radial-gradient(circle at 85% 100%, rgba(255,255,255,.28) 0 5px, transparent 6px);
+  background-size: 200px 420px, 300px 560px;
+  animation: bubbles-up 17s linear infinite;
+}
+@keyframes bubbles-up {
+  from { background-position: 0 0, 0 0, 0 0; }
+  to   { background-position: 0 -1040px, 0 -1280px, 0 -1560px; }
+}
+.app-header, .app-main, .app-footer { position: relative; z-index: 1; }
+
+/* ---- 吉祥物：原创"泡泡海绵"脸（内联 SVG，无外部资源）---- */
+.mascot {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='8' width='56' height='48' rx='15' fill='%23ffd93d' stroke='%23e3a812' stroke-width='3'/%3E%3Ccircle cx='14' cy='18' r='3.5' fill='%23e8b420' opacity='.65'/%3E%3Ccircle cx='50' cy='14' r='3' fill='%23e8b420' opacity='.65'/%3E%3Ccircle cx='10' cy='42' r='4' fill='%23e8b420' opacity='.65'/%3E%3Ccircle cx='54' cy='46' r='3.5' fill='%23e8b420' opacity='.65'/%3E%3Ccircle cx='33' cy='53' r='2.5' fill='%23e8b420' opacity='.6'/%3E%3Ccircle cx='26' cy='28' r='6.5' fill='white'/%3E%3Ccircle cx='40' cy='28' r='6.5' fill='white'/%3E%3Ccircle cx='27.5' cy='29' r='2.6' fill='%232b6cb0'/%3E%3Ccircle cx='38.5' cy='29' r='2.6' fill='%232b6cb0'/%3E%3Cpath d='M22 42 q10 8 20 0' stroke='%23a05a1f' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='17' cy='38' r='2.6' fill='%23ff9d76' opacity='.85'/%3E%3Ccircle cx='47' cy='38' r='2.6' fill='%23ff9d76' opacity='.85'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  animation: sponge-idle 3.2s ease-in-out infinite;
+}
+@keyframes sponge-idle {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-4px) rotate(2deg); }
+}
+/* 翻译进行中：加速蹦跳 */
+.running .mascot, .progress-card.running .mascot {
+  animation: sponge-work .6s ease-in-out infinite;
+}
+@keyframes sponge-work {
+  0%, 100% { transform: translateY(0) rotate(-4deg) scale(1); }
+  50%      { transform: translateY(-6px) rotate(4deg) scale(1.06); }
+}
+
+/* ---- 卡通化控件 ---- */
+.card { border-width: 2.5px; }
+h1 { color: #7a4e00; text-shadow: 0 2px 0 rgba(255,255,255,.7); letter-spacing: 1px; }
+.badge { background: var(--c-accent); color: #fff; box-shadow: 0 2px 0 rgba(94,66,0,.25); }
+.btn { border-width: 2.5px; box-shadow: 0 3px 0 rgba(94, 66, 0, .18); }
+.btn:hover:not(:disabled) { transform: translateY(-2px) rotate(-.5deg); }
+.btn:active:not(:disabled) { transform: translateY(1px); box-shadow: 0 1px 0 rgba(94,66,0,.18); }
+.btn-primary { font-weight: 800; }
+.bar {
+  background: repeating-linear-gradient(45deg,
+    var(--c-primary) 0 12px, #ffce1f 12px 24px);
+}
+.bar-wrap { border-width: 2px; }
+.progress-card { border: 2px dashed var(--c-border); background: #fffbe8; }
+.log { background: #fff9e2; }
+.file-list li { border-width: 2px; background: #fffbe8; }
+.theme-switch button { border-width: 2.5px; }
+input:focus, select:focus { outline-color: rgba(255, 138, 92, .55); }
+.app-footer { color: #23636f; }

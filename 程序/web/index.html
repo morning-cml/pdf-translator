@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PDF 论文翻译</title>
+<link rel="stylesheet" href="/web/css/base.css">
+<link rel="stylesheet" href="/web/themes/sponge/theme.css" id="theme-css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="mascot" aria-hidden="true"></div>
+  <div class="head-text">
+    <h1>PDF 论文翻译</h1>
+    <p class="tagline">英文论文 → 中文 · 保留排版公式图片 · 参考文献不乱动</p>
+  </div>
+  <div class="theme-switch" id="theme-switch" title="换皮肤"></div>
+</header>
+
+<main class="app-main">
+
+  <!-- ① 文件篮 -->
+  <section class="card" id="file-card">
+    <h2><span class="badge">①</span> 选择 PDF</h2>
+    <div class="file-actions">
+      <button class="btn btn-primary" id="btn-pick">＋ 选择文件…</button>
+      <button class="btn" id="btn-clear">清空</button>
+      <span class="hint">可多选；输出默认保存在原文件旁边</span>
+    </div>
+    <ul class="file-list" id="file-list"></ul>
+  </section>
+
+  <!-- ② 设置 -->
+  <section class="card" id="settings-card">
+    <h2><span class="badge">②</span> 翻译设置</h2>
+    <div class="grid" id="settings-basic">
+      <label>服务
+        <select id="s-service"></select>
+      </label>
+      <label>模型
+        <select id="s-model"></select>
+        <input id="s-model-custom" class="custom-input" placeholder="输入模型名"
+               hidden>
+      </label>
+      <label class="wide">API Key
+        <span class="key-row">
+          <input type="password" id="s-key" placeholder="sk-…（DeepSeek 官网申请）">
+          <button class="btn btn-sm" id="btn-eye" title="显示/隐藏">👁</button>
+          <label class="check inline"><input type="checkbox" id="s-remember"
+                 checked> 记住</label>
+          <button class="btn btn-sm" id="btn-test">测试连接</button>
+        </span>
+      </label>
+      <label>输出模式
+        <select id="s-mode">
+          <option value="translated">纯中文</option>
+          <option value="bilingual">双语 · 前后页</option>
+          <option value="sidebyside">双语 · 左右对照</option>
+        </select>
+      </label>
+      <label>领域
+        <select id="s-domain"></select>
+        <input id="s-domain-custom" class="custom-input" placeholder="输入学科名"
+               hidden>
+      </label>
+      <label>试译前 N 页 <small>(0=整篇)</small>
+        <input type="number" id="s-trial" min="0" max="999" value="0">
+      </label>
+      <label class="wide">术语库 CSV
+        <span class="key-row">
+          <input id="s-glossary" placeholder="glossary/cs_terms.csv">
+          <button class="btn btn-sm" id="btn-glossary">浏览…</button>
+        </span>
+      </label>
+      <label class="wide">输出到
+        <span class="key-row">
+          <label class="check inline"><input type="radio" name="outloc"
+                 id="s-out-same" value="same" checked> 原文件同目录</label>
+          <label class="check inline"><input type="radio" name="outloc"
+                 id="s-out-custom" value="custom"> 指定：</label>
+          <input id="s-outdir" placeholder="点右侧浏览选择文件夹">
+          <button class="btn btn-sm" id="btn-outdir">浏览…</button>
+        </span>
+      </label>
+    </div>
+    <details id="adv">
+      <summary>高级选项</summary>
+      <div class="grid">
+        <label class="wide">接口地址
+          <input id="s-baseurl">
+        </label>
+        <label>并发数
+          <input type="number" id="s-workers" min="1" max="32" value="8">
+        </label>
+        <label>回填后端
+          <select id="s-backend">
+            <option value="auto">自动（推荐）</option>
+            <option value="pymupdf">PyMuPDF·精确抹除</option>
+            <option value="reportlab">reportlab·兼容覆盖</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="s-thinking"> 思考模式（更准更慢）</label>
+        <label class="check"><input type="checkbox" id="s-direct"> 直连（SSL 报错时勾选）</label>
+        <label class="check"><input type="checkbox" id="s-mock"> 离线测试（不花钱看排版）</label>
+      </div>
+    </details>
+  </section>
+
+  <!-- ③ 运行 -->
+  <section class="card" id="run-card">
+    <h2><span class="badge">③</span> 开始</h2>
+    <div class="run-bar">
+      <button class="btn btn-primary btn-big" id="btn-start">▶ 开始翻译</button>
+      <button class="btn" id="btn-cancel" disabled>取消</button>
+      <span class="status" id="status-line">就绪。</span>
+    </div>
+    <div class="progress-card" id="progress-card">
+      <div class="mascot small" aria-hidden="true"></div>
+      <div class="bar-wrap"><div class="bar" id="bar"></div></div>
+      <span class="pct" id="pct">0%</span>
+    </div>
+    <ul class="results" id="results"></ul>
+    <pre class="log" id="log" aria-label="日志"></pre>
+  </section>
+
+</main>
+
+<footer class="app-footer">本地运行 · 数据不出电脑（除发送给所选翻译服务的文字）</footer>
+<div class="toast" id="toast"></div>
+
+<script type="module" src="/web/js/app.js"></script>
+</body>
+</html>

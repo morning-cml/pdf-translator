@@ -1,0 +1,9 @@
+# ── 用户文档（不纳入版本库；这是工作区，不是产品的一部分）──
+/*.pdf
+
+# ── 工具/环境 ──
+.claude/
+__pycache__/
+*.pyc
+Thumbs.db
+desktop.ini

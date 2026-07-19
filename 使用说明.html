@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>PDF 论文翻译工具 · 使用说明</title>
+<style>
+  body { font-family: "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+         max-width: 880px; margin: 24px auto 80px; padding: 0 20px;
+         color: #222; line-height: 1.75; }
+  h1 { font-size: 26px; border-bottom: 3px solid #b5342a; padding-bottom: 10px; }
+  h2 { font-size: 20px; margin-top: 40px; border-left: 5px solid #b5342a;
+       padding-left: 10px; }
+  h3 { font-size: 16px; margin-top: 24px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid #ccc; padding: 7px 10px; text-align: left;
+           vertical-align: top; }
+  th { background: #f5f0ef; white-space: nowrap; }
+  code, .path { background: #f4f4f4; border: 1px solid #e0e0e0; border-radius: 3px;
+         padding: 1px 6px; font-family: Consolas, monospace; font-size: 13px; }
+  .step { background: #fbf7f6; border: 1px solid #e8d9d7; border-radius: 8px;
+          padding: 14px 18px; margin: 10px 0; }
+  .step b.n { color: #b5342a; margin-right: 6px; }
+  .tip { background: #f2f8f2; border-left: 4px solid #4a8f4a; padding: 8px 14px;
+         margin: 10px 0; font-size: 14px; }
+  .warn { background: #fdf6ec; border-left: 4px solid #d09440; padding: 8px 14px;
+          margin: 10px 0; font-size: 14px; }
+  .muted { color: #777; font-size: 13px; }
+  li { margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<h1>PDF 论文翻译工具 · 使用说明</h1>
+<p>把<b>英文论文 PDF</b> 翻译成<b>中文 PDF</b>：图片、公式、表格、排版原样保留，
+译文出现在原文对应的位置；参考文献按学术惯例保持原样。支持扫描版（自动 OCR）。
+翻译由大模型完成（默认 DeepSeek，也可用本地免费模型）。</p>
+
+<h2>一、第一次使用（只需三步）</h2>
+<div class="step"><b class="n">第 1 步</b>双击 <span class="path">启动PDF翻译.bat</span>。
+首次会自动安装所需组件（需联网，几分钟），随后<b>浏览器会自动打开操作界面</b>。
+<br>启动时会出现一个黑色小窗口，那是程序本体，<b>请勿关闭</b>；用完后关掉它即退出程序。</div>
+<div class="step"><b class="n">第 2 步</b>填入 API Key。到
+<span class="path">https://platform.deepseek.com/api_keys</span>
+注册并创建一个 Key（形如 sk-…，需充值少量金额），粘贴到界面"API Key"栏，
+勾选"记住"。点"测试连接"确认可用。</div>
+<div class="step"><b class="n">第 3 步</b>点"添加…"选择 PDF（可多选），点
+"▶ 开始翻译"。完成后点"打开 PDF"即可阅读。</div>
+<div class="tip">建议第一次先把"试译前 N 页"设为 <b>2</b>，花几分钱看看效果，
+满意后改回 0 翻整篇——已试译的部分有缓存，<b>不会重复收费</b>。</div>
+
+<h2>二、翻译好的文件在哪？</h2>
+<p>默认生成在<b>原 PDF 的同一个文件夹</b>，文件名规则：</p>
+<table>
+<tr><th>输出模式</th><th>生成文件名</th><th>适合什么时候用</th></tr>
+<tr><td>纯中文</td><td><code>原名_translation.pdf</code></td>
+    <td>日常阅读。译文直接替换原文，版式与原文一致。</td></tr>
+<tr><td>双语·前后页</td><td><code>原名_translation_bilingual.pdf</code></td>
+    <td>打印对照。原文页与译文页交替出现。</td></tr>
+<tr><td>双语·左右对照</td><td><code>原名_translation_sidebyside.pdf</code></td>
+    <td>屏幕上核对原文。每页变成宽页：左半原文、右半译文，逐页对齐。</td></tr>
+</table>
+
+<h2>三、界面各选项是什么意思</h2>
+<table>
+<tr><th>选项</th><th>说明</th></tr>
+<tr><td>服务</td><td>用哪家翻译服务，已预设六家：<b>DeepSeek</b>（默认，性价比最高）、
+<b>Kimi 月之暗面</b>（中文行文流畅、超长文一致性好，K 系列口碑强；
+platform.kimi.com 申请）、<b>智谱 GLM</b>（GLM-5.2 推理严谨但较贵；
+open.bigmodel.cn 申请）、<b>豆包 火山方舟</b>（快且便宜，适合大批量初稿；
+console.volcengine.com/ark 申请，模型需先在控制台开通）、<b>OpenAI</b>、
+<b>Ollama 本地</b>（完全免费离线，需自装 Ollama）。各家 Key 互不通用；
+选"自定义"可手填任何兼容 OpenAI 接口的地址。</td></tr>
+<tr><td>模型</td><td>DeepSeek 下 <b>v4-pro</b> 质量高（推荐论文），
+<b>v4-flash</b> 更快更便宜。可手动输入其他模型名。</td></tr>
+<tr><td>并发数</td><td>同时发几个翻译请求。默认 8，网络稳可调大提速，不影响质量。</td></tr>
+<tr><td>回填</td><td>译文写回 PDF 的方式。保持"自动"即可（优先精确抹除；
+个别文件出问题时可手动换 reportlab 兼容方案对比）。</td></tr>
+<tr><td>输出模式</td><td>见上一节表格。</td></tr>
+<tr><td>试译前 N 页</td><td>只翻译前 N 页预览效果，0 = 翻整篇。试译过的段落
+自动缓存，翻整篇时不重复收费。</td></tr>
+<tr><td>领域</td><td>论文所属学科（计算机/生物医学/物理…），影响翻译用词口径。
+可手动填写其他学科。</td></tr>
+<tr><td>术语库</td><td>一个 CSV 对照表（英文,中文），强制统一专业词译法。
+自带计算机领域 180+ 条，用 Excel/记事本即可编辑扩充
+（<span class="path">程序\glossary\cs_terms.csv</span>，存为 UTF-8）。</td></tr>
+<tr><td>输出到</td><td>默认放原文件旁边；也可指定统一输出文件夹。</td></tr>
+<tr><td>离线测试模式</td><td>不联网、不花钱，用占位文字检查排版效果。日常不用勾。</td></tr>
+<tr><td>直连模式</td><td>出现 SSL/连接错误时勾上（绕过系统代理/VPN）。</td></tr>
+<tr><td>思考模式</td><td>让模型先推理再翻译：质量略高但明显变慢。赶时间就取消勾选。</td></tr>
+</table>
+
+<h2>四、费用与省钱</h2>
+<ul>
+<li>点开始后，日志会先显示<b>费用预估</b>：「预计需请求 N 段，约 M 万 tokens」。
+一篇 15 页论文全文约 3~4 万 tokens，用 DeepSeek 通常只要几毛钱。</li>
+<li><b>翻译缓存</b>：译过的段落自动存在本机
+（<span class="path">程序\cache\</span>）。同一篇文档再翻（换输出模式、
+补失败段、重新生成）几乎不再花钱。</li>
+<li>省钱三招：先<b>试译 2 页</b>再翻整篇；模型换 <b>v4-flash</b>；
+取消<b>思考模式</b>。</li>
+<li>翻译中途网络出错<b>不会前功尽弃</b>：失败的段落自动保留原文并提示数量，
+重新点一次"开始翻译"即可只补失败的部分。</li>
+</ul>
+
+<h2>五、扫描版 PDF（图片型）</h2>
+<p>无需任何设置：检测到某页没有文字层时自动进行本地 OCR 识别（不联网、
+不需要显卡），再走正常翻译流程。日志会显示「第 N 页为扫描版，已 OCR 识别」。
+每页识别约需几秒，首次使用多约 20 秒初始化。</p>
+<div class="warn">扫描版的限制：识别质量受扫描清晰度影响；整页倒置（180°）的
+扫描件不会自动纠正；译文以白底覆盖回填，深色纸张背景会露出白条。</div>
+
+<h2>六、常见问题</h2>
+<h3>提示 SSL 连接错误 / 连接失败？</h3>
+<p>几乎都是 VPN、加速器或安全软件拦截所致。按顺序试：① 关闭 VPN/加速器；
+② 界面勾选<b>直连模式</b>；③ 暂时关闭 360/电脑管家的"HTTPS/SSL 扫描"；
+④ 浏览器打开 <span class="path">https://api.deepseek.com</span> 看网络是否通。</p>
+<h3>提示 401 / 402 / 403？</h3>
+<p>Key 填错或余额不足。到 DeepSeek 官网检查 Key 与充值。</p>
+<h3>翻译完发现某些段落还是英文？</h3>
+<p>三种情况：① 参考文献——<b>有意保留</b>（学术惯例，保持原排版便于检索文献）；
+② 页眉艺术字、版权小字等零散内容——模型判断无需翻译时保留原样；
+③ 日志若提示「N 段因网络失败」——重新点开始翻译即可补齐。</p>
+<h3>某一页排版效果不好？</h3>
+<p>把"回填"换成 <b>reportlab</b> 再试一次对比；仍不理想可把该页截图反馈。</p>
+<h3>浏览器没自动打开 / 界面打不开？</h3>
+<p>看那个黑色窗口里显示的网址（形如
+<span class="path">http://127.0.0.1:8763/</span>），手动复制到浏览器打开即可。
+若窗口里有红色报错，把截图发给维护者。<br>
+实在起不来时，可双击 <span class="path">程序\备用-经典界面.bat</span> 使用
+经典桌面界面应急（功能与网页版相同，但不再更新、没有皮肤）。</p>
+<h3>想彻底离线免费用？</h3>
+<p>安装 <span class="path">https://ollama.com</span>，执行
+<code>ollama pull qwen2.5:7b</code> 下载模型，界面"服务"切到
+<b>Ollama 本地</b>即可（质量略低于 DeepSeek，胜在免费离线）。</p>
+
+<h2>七、文件夹里都是什么？哪些能删？</h2>
+<table>
+<tr><th>位置</th><th>是什么</th><th>能删吗</th></tr>
+<tr><td><span class="path">启动PDF翻译.bat</span></td><td>唯一入口，双击启动</td><td><b>别删</b></td></tr>
+<tr><td><span class="path">使用说明.html</span></td><td>本说明</td><td>可删</td></tr>
+<tr><td><span class="path">程序\</span></td><td>程序本体（代码、配置、术语库、模型）</td><td><b>别删、别改名</b></td></tr>
+<tr><td><span class="path">程序\config.json</span></td><td>你的设置（含 API Key，勿外传）</td><td>删了要重填设置</td></tr>
+<tr><td><span class="path">程序\cache\</span></td><td>翻译缓存</td><td>可删；删后重译要重新计费</td></tr>
+<tr><td><span class="path">程序\models\</span></td><td>版面分析模型（识别表格/图区）</td><td>可删；删后该增强自动关闭，其余功能不受影响</td></tr>
+<tr><td><span class="path">程序\selftest_out\</span></td><td>自测输出的对比图</td><td>可删</td></tr>
+<tr><td><span class="path">程序\docs\</span></td><td>开发文档（交接说明、任务清单）</td><td>建议保留</td></tr>
+</table>
+
+<h2>八、附录：命令行用法（可选，给会用命令行的人）</h2>
+<p>在 <span class="path">程序</span> 文件夹打开终端：</p>
+<table>
+<tr><th>想做什么</th><th>命令</th></tr>
+<tr><td>翻译整篇</td><td><code>py translate_cli.py "论文.pdf"</code></td></tr>
+<tr><td>试译前 3 页</td><td><code>py translate_cli.py "论文.pdf" --pages 3</code></td></tr>
+<tr><td>左右对照版</td><td><code>py translate_cli.py "论文.pdf" --mode sidebyside</code></td></tr>
+<tr><td>指定学科</td><td><code>py translate_cli.py "论文.pdf" --domain 生物医学</code></td></tr>
+<tr><td>不花钱检查排版</td><td><code>py translate_cli.py "论文.pdf" --mock</code></td></tr>
+<tr><td>回填后端自测</td><td>双击 <span class="path">程序\自测-PyMuPDF.bat</span></td></tr>
+</table>
+<p class="muted">更多参数：<code>py translate_cli.py -h</code>。
+技术文档见 <span class="path">程序\README.md</span> 与
+<span class="path">程序\docs\交接说明_HANDOFF.md</span>。</p>
+
+</body>
+</html>

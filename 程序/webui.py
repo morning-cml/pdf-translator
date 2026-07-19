@@ -1,0 +1,262 @@
+"""网页版前端 · 本地服务（零新依赖，标准库实现）。
+
+用法：双击外层 启动网页版.bat，或 `py webui.py`。
+只绑定 127.0.0.1（仅本机可访问）；翻译内核 100% 复用 src/pipeline。
+API 约定见 docs/前端设计.md 第 4 节。
+"""
+from __future__ import annotations
+
+import json
+import os
+import socket
+import sys
+import threading
+import traceback
+import uuid
+import webbrowser
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import unquote, urlparse
+
+ROOT = Path(__file__).resolve().parent
+WEB = ROOT / "web"
+sys.path.insert(0, str(ROOT))
+os.chdir(ROOT)
+
+from src.config import load_config, save_config  # noqa: E402
+from src.pipeline import CancelledError, check_connection, translate_pdf  # noqa: E402
+
+JOBS: dict = {}
+JOBS_LOCK = threading.Lock()
+PICK_LOCK = threading.Lock()
+
+_MIME = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
+         ".js": "text/javascript; charset=utf-8", ".json": "application/json",
+         ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon",
+         ".woff2": "font/woff2"}
+
+
+# ---------------------------------------------------------------------------
+# 任务执行（后台线程；一次一个活动任务，与 tkinter 版一致）
+# ---------------------------------------------------------------------------
+
+def _out_path(src: str, mode: str, outdir: str = "") -> str:
+    p = Path(src)
+    suffix = {"bilingual": "_translation_bilingual",
+              "sidebyside": "_translation_sidebyside"}.get(mode, "_translation")
+    base = Path(outdir) if outdir else p.parent
+    return str(base / (p.stem + suffix + ".pdf"))
+
+
+def _run_job(job_id: str, files: list, overrides: dict, mock: bool,
+             outdir: str = ""):
+    job = JOBS[job_id]
+
+    def log(msg: str, frac: float, base: float, span: float):
+        job["percent"] = round((base + span * frac) * 100)
+        job["message"] = msg
+        job["log"].append(msg)
+
+    try:
+        cfg = load_config(**{k: v for k, v in overrides.items() if v is not None})
+        n = max(len(files), 1)
+        for i, f in enumerate(files):
+            if job["cancel"].is_set():
+                raise CancelledError("已取消。")
+            base, span = i / n, 1 / n
+            job["log"].append(f"—— [{i + 1}/{n}] {Path(f).name} ——")
+            out = _out_path(f, cfg.output_mode, outdir)
+            res = translate_pdf(
+                f, out, cfg, mock=mock,
+                progress=lambda m, fr: log(m, fr, base, span),
+                should_cancel=job["cancel"].is_set)
+            job["outputs"].append({"file": res["output"],
+                                   "pages": res["pages"],
+                                   "backend": res["backend"]})
+        job["status"] = "done"
+        job["message"] = "全部完成 ✔"
+        job["percent"] = 100
+    except CancelledError:
+        job["status"] = "cancelled"
+        job["message"] = "已取消。"
+    except Exception as e:  # noqa: BLE001
+        job["status"] = "error"
+        job["message"] = f"出错：{e}"
+        job["log"].append(traceback.format_exc(limit=3))
+
+
+def _pick(kind: str = "pdf") -> list:
+    """本机选择框（串行化调用；浏览器无法提供本地路径，故由服务端弹窗）。
+    kind: pdf=多选 PDF；csv=单选术语库；dir=选文件夹。"""
+    with PICK_LOCK:
+        import tkinter as tk
+        from tkinter import filedialog
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        try:
+            if kind == "csv":
+                p = filedialog.askopenfilename(
+                    title="选择术语库 CSV", filetypes=[("CSV", "*.csv")])
+                return [p] if p else []
+            if kind == "dir":
+                d = filedialog.askdirectory(title="选择输出文件夹")
+                return [d] if d else []
+            paths = filedialog.askopenfilenames(
+                title="选择英文 PDF", filetypes=[("PDF", "*.pdf")])
+            return [str(p) for p in paths]
+        finally:
+            root.destroy()
+
+
+# ---------------------------------------------------------------------------
+# HTTP 处理
+# ---------------------------------------------------------------------------
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, *a):  # 安静
+        pass
+
+    # ---- 基础 ----
+    def _json(self, obj, code: int = 200):
+        data = json.dumps(obj, ensure_ascii=False).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def _body(self) -> dict:
+        n = int(self.headers.get("Content-Length") or 0)
+        if not n:
+            return {}
+        try:
+            return json.loads(self.rfile.read(n).decode("utf-8"))
+        except Exception:  # noqa: BLE001
+            return {}
+
+    def _static(self, rel: str):
+        p = (WEB / rel).resolve()
+        if not str(p).startswith(str(WEB.resolve())) or not p.is_file():
+            self.send_error(404)
+            return
+        data = p.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", _MIME.get(p.suffix.lower(),
+                                                   "application/octet-stream"))
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(data)
+
+    # ---- 路由 ----
+    def do_GET(self):
+        path = urlparse(self.path).path
+        if path in ("/", "/index.html"):
+            return self._static("index.html")
+        if path.startswith("/web/"):
+            return self._static(unquote(path[5:]))
+        if path == "/api/config":
+            cfg = load_config()
+            return self._json(cfg.to_dict())
+        if path == "/api/themes":
+            try:
+                reg = json.loads((WEB / "themes" / "themes.json")
+                                 .read_text(encoding="utf-8"))
+            except Exception:  # noqa: BLE001
+                reg = []
+            return self._json(reg)
+        if path.startswith("/api/jobs/"):
+            jid = path.rsplit("/", 1)[-1]
+            job = JOBS.get(jid)
+            if not job:
+                return self._json({"error": "no such job"}, 404)
+            return self._json({k: job[k] for k in
+                               ("status", "percent", "message", "log", "outputs")})
+        self.send_error(404)
+
+    def do_POST(self):
+        path = urlparse(self.path).path
+        body = self._body()
+
+        if path == "/api/config":
+            cfg = load_config(**{k: v for k, v in body.items() if v is not None})
+            try:
+                save_config(cfg)
+                return self._json({"ok": True})
+            except Exception as e:  # noqa: BLE001
+                return self._json({"ok": False, "error": str(e)}, 500)
+
+        if path == "/api/pick":
+            try:
+                return self._json({"files": _pick(body.get("type", "pdf"))})
+            except Exception as e:  # noqa: BLE001
+                return self._json({"files": [], "error": str(e)})
+
+        if path == "/api/test":
+            cfg = load_config(**{k: v for k, v in body.items() if v is not None})
+            ok, msg = check_connection(cfg)
+            return self._json({"ok": ok, "message": msg})
+
+        if path == "/api/jobs":
+            files = [f for f in body.get("files", []) if Path(f).is_file()]
+            if not files:
+                return self._json({"error": "没有有效的 PDF 文件"}, 400)
+            with JOBS_LOCK:
+                if any(j["status"] == "running" for j in JOBS.values()):
+                    return self._json({"error": "已有任务在进行中"}, 409)
+                jid = uuid.uuid4().hex[:12]
+                JOBS[jid] = {"status": "running", "percent": 0,
+                             "message": "准备中…", "log": [], "outputs": [],
+                             "cancel": threading.Event()}
+            t = threading.Thread(
+                target=_run_job,
+                args=(jid, files, body.get("overrides", {}),
+                      bool(body.get("mock")), body.get("outdir") or ""),
+                daemon=True)
+            t.start()
+            return self._json({"job_id": jid})
+
+        if path.startswith("/api/jobs/") and path.endswith("/cancel"):
+            jid = path.split("/")[3]
+            job = JOBS.get(jid)
+            if job:
+                job["cancel"].set()
+                return self._json({"ok": True})
+            return self._json({"error": "no such job"}, 404)
+
+        if path == "/api/open":
+            target = body.get("path", "")
+            if body.get("folder"):
+                target = str(Path(target).parent)
+            if target and Path(target).exists():
+                os.startfile(target)  # noqa: S606 — 本机打开产物
+                return self._json({"ok": True})
+            return self._json({"ok": False, "error": "路径不存在"}, 404)
+
+        self.send_error(404)
+
+
+def main():
+    port = 8763
+    for cand in range(8763, 8793):
+        with socket.socket() as s:
+            if s.connect_ex(("127.0.0.1", cand)) != 0:
+                port = cand
+                break
+    srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    url = f"http://127.0.0.1:{port}/"
+    print("=" * 52)
+    print("  PDF 论文翻译 · 网页版已启动")
+    print(f"  地址：{url}（仅本机可访问）")
+    print("  关闭本窗口即退出程序。")
+    print("=" * 52)
+    threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == "__main__":
+    main()

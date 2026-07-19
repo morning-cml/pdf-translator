@@ -1,0 +1,19 @@
+# PDF paper translator (English -> Chinese) dependencies
+# Install on Windows:  python -m pip install -r requirements.txt
+
+pdfplumber>=0.11.0
+reportlab>=4.0.0
+pypdf>=4.0.0
+requests>=2.28.0
+
+# Preferred rendering backend (precise redaction + embedded CJK fonts).
+# The tool still works without it (falls back to reportlab overlay).
+pymupdf>=1.24.0
+# Used by pymupdf to subset embedded fonts (smaller output files).
+fonttools>=4.40.0
+
+# OCR for scanned PDFs (models bundled in the wheel, works offline).
+# Optional: without it, scanned PDFs are reported with an install hint.
+rapidocr-onnxruntime>=1.4.0
+
+# The GUI uses Python's built-in tkinter (no extra install needed).

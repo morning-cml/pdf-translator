@@ -1,0 +1,124 @@
+# PDF 论文翻译工具（英文 → 中文）— 技术说明
+
+把英文论文 PDF 翻译成中文 PDF，**完整保留图片、公式、表格与排版**，译文落在
+原文对应位置。支持扫描版（本地 OCR）、双语对照输出、持久化翻译缓存、多翻译
+服务（任意 OpenAI 兼容接口）。
+
+> **使用者请看外层的《使用说明.html》**（双击浏览器打开）。
+> 本文件面向开发/维护者；完整开发史与算法细节见 `docs/交接说明_HANDOFF.md`，
+> 工程任务卡见 `docs/TASKS.md`。
+
+## 快速开始（开发者）
+
+```bash
+py -m pip install -r requirements.txt     # 依赖（含 OCR；文件对话框用自带 tkinter）
+py webui.py                               # 【正式】网页界面（自动开浏览器）
+py run_gui.py                             # 备用 tkinter 界面（已冻结，勿加新功能）
+py translate_cli.py "论文.pdf" --mock     # 离线跑通版式（不花 token）
+py translate_cli.py "论文.pdf" --pages 2  # 真实试译前 2 页
+py selftest_backend.py                    # 回填后端自测（配 自测-PyMuPDF.bat）
+py samples/make_scanned.py                # 生成扫描版样张 → 回归 OCR 管线
+```
+
+## 架构（数据流）
+
+```
+解析 pdf_parser ──► 翻译 translator ──► 重排 layout ──► 写回 pdf_writer_fitz / pdf_writer
+   │                    │                                        │
+   ├ 分栏/分行/分段      ├ 批量+并发+重试+失败降级                 ├ fitz：redaction 精确抹除
+   ├ 行内公式 ⟦Fn⟧ 保护  ├ 术语库注入 + 全文上下文                 │        + 公式矢量回贴
+   ├ 加粗/颜色→标题层级  ├ 持久化缓存 transcache                  ├ reportlab：白底覆盖（兜底）
+   ├ 参考文献区免译保排  ├ 占位符校验/强化重试                     ├ 共享重排：避障/禁则/两端
+   ├ 扫描页 OCR 回灌     └ 译后 pangu 加空格                      │   对齐/向下扩展/缩号
+   └ 版面模型(可选)                                              └ 双语前后页 / 左右对照
+```
+
+编排在 `pipeline.translate_pdf`：跨栏断句配对成翻译单元 → 成本预估 → 翻译 →
+无中文译文的块保留原排版 → 选后端写回（PyMuPDF 失败自动回退 reportlab）。
+
+## 模块一览
+
+| 文件 | 职责 |
+|---|---|
+| `src/pdf_parser.py` | 【核心】词→行→栏→段；公式检测；标题层级；引用区识别；OCR 回灌 |
+| `src/ocr.py` | 扫描页 OCR（RapidOCR，离线）；竖排字过滤、方向分类器关闭 |
+| `src/layout_model.py` | 可选版面模型（DocLayout-YOLO onnx）：表格/图区/独立公式 |
+| `src/translator.py` | DeepSeek/OpenAI 兼容客户端；批量并发；缓存；失败降级；Mock |
+| `src/transcache.py` | 持久化翻译缓存（cache/translations.json，键含模型/领域/上下文） |
+| `src/glossary.py` | 术语库加载与注入（整词/长短语优先） |
+| `src/layout.py` | 共享重排引擎：断行/禁则/逐行避障/向下扩展/缩号/两端对齐 |
+| `src/pdf_writer_fitz.py` | 【首选】精确抹除+CJK 嵌入+公式矢量回贴+双语拼页 |
+| `src/pdf_writer.py` | 【兜底】reportlab 行矩形覆盖+位图回贴 |
+| `src/textfix.py` | 译后中西文加空格（盘古之白） |
+| `src/pipeline.py` | 编排；跨栏配对；成本预估；后端选择与回退 |
+| `src/gui.py` | tkinter 界面（服务预设/领域/试译/三种输出模式） |
+| `src/config.py` | 配置加载/保存（ROOT = src/ 上一级） |
+
+## 目录结构
+
+```
+Translation/                       # 外层 = 用户桌面工作区
+├─ 启动PDF翻译.bat                 # 【唯一入口】起本地服务并打开浏览器
+├─ 使用说明.html                   # 用户手册
+└─ 程序/
+   ├─ webui.py                     # 【正式界面】网页版本地服务（标准库 HTTP，仅 127.0.0.1）
+   ├─ web/                         # 前端：index.html + css/js + themes/（皮肤包）
+   ├─ run_gui.py + src/gui.py      # 【已冻结】tkinter 备用界面，入口 备用-经典界面.bat
+   ├─ translate_cli.py / selftest_backend.py
+   ├─ 备用-经典界面.bat / 自测-PyMuPDF.bat
+   ├─ requirements.txt / config.json(含Key) / config.example.json
+   ├─ glossary/cs_terms.csv        # 术语库（可编辑）
+   ├─ models/…onnx                 # 版面模型（删除即关闭该增强）
+   ├─ cache/translations.json      # 翻译缓存（删除即重新计费）
+   ├─ fonts/                       # （可选）思源字体，自动嵌入
+   ├─ samples/make_sample.py / make_scanned.py + 样张
+   ├─ selftest_out/                # 自测输出
+   ├─ docs/交接说明_HANDOFF.md     # 完整开发史/算法细节/已知限制
+   ├─ docs/TASKS.md                # 12 项工程任务卡（全部完成）
+   ├─ docs/前端设计.md             # 网页前端架构（分层/皮肤契约/API/扩展路线）
+   ├─ docs/未来路线图.md           # 【重要】五大改进方向 + 商业化许可证约束
+   └─ src/                         # 见模块一览
+```
+
+## 界面策略（2026-07-19 起）
+
+**网页版是唯一正式界面**，新功能只加在 `web/` + `webui.py`。tkinter 版
+（`run_gui.py` + `src/gui.py`）**已冻结**为应急备胎：功能停在 2026-07-19
+（T1–T12 齐备），不再跟进新特性，入口不在顶层暴露（`程序/备用-经典界面.bat`）。
+> 退役原因：双端并行导致同一功能写两遍，已实际引发过两端不一致的缺陷；
+> 且皮肤化与后续商业化只有网页端能承载。若确需改动 gui.py，务必同步
+> `web/js/components.js` 并跑双端 SERVICES 对照校验。
+
+## 网页前端（webui.py + web/）
+
+零新依赖（标准库 HTTP 服务，仅绑定 127.0.0.1）。分层与皮肤契约详见
+`docs/前端设计.md`：皮肤 = `web/themes/<id>/theme.css` 一个文件（只准写
+CSS 变量与装饰），`themes.json` 注册即出现在界面切换器；组件层不直接
+fetch、组件间经 store 通信；将来云端化只需改 `api.js` 的 BASE。
+已含两套皮肤：`sponge`（海绵泡泡·原创卡通）与 `clean`（极简样板）。
+
+## 测试
+
+- **一键自测**：双击 `自测-PyMuPDF.bat`——Mock 跑 15 页真实论文、校验页数/
+  文字层、导出前后对比 PNG 到 `selftest_out/`。
+- **扫描版回归**：`py samples/make_scanned.py && py translate_cli.py
+  samples/sample_scanned.pdf --mock`。
+- **改内核必做**：ASCII 密集压力测试（Mock near纯中文测不出 ASCII 宽度/溢出
+  类缺陷，教训见 handoff §8.11），或真实 Key `--pages 2` 抽译目检。
+- 渲染检查：`pdfplumber` 的 `page.to_image(resolution=140).save(...)`。
+
+## ⚠️ 商用前必读：依赖许可证
+
+**PyMuPDF（首选回填后端）与 DocLayout-YOLO（版面模型）均为 AGPL-3.0**：
+分发或以网络服务提供，都会触发"必须开源整个产品"的义务，否则需购买商业授权。
+其余依赖（pdfplumber MIT / pypdf BSD / reportlab BSD / RapidOCR Apache 2.0）
+可自由商用。若计划闭源发行，需先把 reportlab 后端提升到可用质量并把 PyMuPDF
+降为可选组件——详见 `docs/未来路线图.md` 第二节。
+
+## 已知限制（详见 handoff §8）
+
+- 旋转页整文件走 reportlab 兜底；扫描版倒置页不自动纠正、深色纸背露白。
+- reportlab 兜底不删原文字层（白框遮盖）。
+- OCR 个别行丢词间空格（翻译模型通常能正确理解）。
+- 数字两侧空格是否保留交给模型，全篇不保证完全统一。
+- 术语库随领域切换尚未自动换库（领域只影响提示词）。

@@ -1,0 +1,23 @@
+{
+  "api_key": "在此填入你的 DeepSeek API Key（sk-...）",
+  "base_url": "https://api.deepseek.com",
+  "model": "deepseek-v4-pro",
+  "temperature": 1.0,
+  "source_lang": "英文",
+  "target_lang": "中文",
+  "output_mode": "translated",
+  "glossary_path": "glossary/cs_terms.csv",
+  "batch_size": 8,
+  "max_workers": 8,
+  "thinking": true,
+  "use_system_proxy": true,
+  "proxy": "",
+  "verify_ssl": true,
+  "render_backend": "auto",
+  "font_path": "",
+  "use_cache": true,
+  "domain": "计算机科学",
+  "max_pages": 0,
+  "price_in": 0.0,
+  "price_out": 0.0
+}

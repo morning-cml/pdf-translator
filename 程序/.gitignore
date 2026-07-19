@@ -1,0 +1,15 @@
+# 含 API Key，切勿提交
+config.json
+error.log
+__pycache__/
+*.pyc
+samples/*_zh.pdf
+samples/*_bi.pdf
+# 生成物（由 samples/make_*.py 随时重建）
+samples/sample_scanned.pdf
+samples/sample_paper_translation.pdf
+# 持久化翻译缓存与自测输出
+cache/
+selftest_out/
+# 版面分析模型（72MB，按 docs/前端设计.md 或 handoff 指引单独下载）
+models/
