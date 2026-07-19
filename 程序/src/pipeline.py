@@ -204,11 +204,12 @@ def _estimate_line(translator, texts, cfg: Config) -> str:
     return line
 
 
-SUPPORTED_EXTS = (".pdf", ".docx")
+TEXT_EXTS = (".md", ".markdown", ".txt", ".srt")
+SUPPORTED_EXTS = (".pdf", ".docx") + TEXT_EXTS
 
 
 def translate_document(input_path: str, output_path: str, cfg: Config, **kw) -> dict:
-    """按扩展名分派到对应格式的翻译器（PDF / DOCX）。
+    """按扩展名分派到对应格式的翻译器。
 
     各入口（CLI / 网页版）统一调用本函数，新增格式只需在此登记一处。
     """
@@ -216,6 +217,9 @@ def translate_document(input_path: str, output_path: str, cfg: Config, **kw) -> 
     if ext == ".docx":
         from .docx_translator import translate_docx
         return translate_docx(input_path, output_path, cfg, **kw)
+    if ext in TEXT_EXTS:
+        from .text_translator import translate_text_file
+        return translate_text_file(input_path, output_path, cfg, **kw)
     if ext == ".doc":
         raise TranslatorError(
             "旧版 .doc 格式不支持，请先用 Word 另存为 .docx 后再翻译。")
@@ -223,8 +227,12 @@ def translate_document(input_path: str, output_path: str, cfg: Config, **kw) -> 
 
 
 def output_suffix(mode: str, ext: str = ".pdf") -> str:
-    """统一的输出文件名后缀规则（各入口共用，避免命名不一致）。"""
-    if ext.lower() == ".docx":
+    """统一的输出文件名后缀规则（各入口共用，避免命名不一致）。
+
+    只有 PDF 有"左右对照"的版面概念；其余格式的双语一律是"原文+译文"并排
+    成段/成行，统称 bilingual。
+    """
+    if ext.lower() != ".pdf":
         return "_translation_bilingual" if mode != "translated" else "_translation"
     return {"bilingual": "_translation_bilingual",
             "sidebyside": "_translation_sidebyside"}.get(mode, "_translation")

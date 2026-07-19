@@ -18,8 +18,10 @@ from src.translator import TranslatorError
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="科研文档英译中工具（PDF / Word）")
-    ap.add_argument("input", help="输入文件路径（.pdf 或 .docx）")
+    ap = argparse.ArgumentParser(
+        description="科研文档英译中工具（PDF / Word / Markdown / TXT / SRT）")
+    ap.add_argument("input",
+                    help="输入文件路径（.pdf .docx .md .txt .srt）")
     ap.add_argument("-o", "--output", help="输出 PDF 路径（默认 <输入名>_zh.pdf）")
     ap.add_argument("--mode", choices=["translated", "bilingual", "sidebyside"],
                     help="translated=纯译文；bilingual=双语·前后页；sidebyside=双语·左右对照宽页")

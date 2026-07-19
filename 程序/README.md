@@ -1,8 +1,9 @@
 # PDF 论文翻译工具（英文 → 中文）— 技术说明
 
-把英文文档（**PDF / Word .docx**）翻译成中文，**完整保留图片、公式、表格与
-排版**，译文落在原文对应位置。支持扫描版 PDF（本地 OCR）、表格逐单元格翻译、
-双语对照输出、持久化翻译缓存、多翻译服务（任意 OpenAI 兼容接口）。
+把英文文档翻译成中文，**完整保留图片、公式、表格与排版**，译文落在原文对应
+位置。支持格式：**PDF · Word(.docx) · Markdown · TXT · SRT 字幕**。
+另有扫描版 PDF（本地 OCR）、表格逐单元格翻译、双语对照输出、译文质量自检、
+持久化翻译缓存、多翻译服务（任意 OpenAI 兼容接口）。
 
 > **使用者请看外层的《使用说明.html》**（双击浏览器打开）。
 > 本文件面向开发/维护者；完整开发史与算法细节见 `docs/交接说明_HANDOFF.md`，
@@ -53,6 +54,8 @@ py samples/make_scanned.py                # 生成扫描版样张 → 回归 OCR
 | `src/pdf_writer.py` | 【兜底】reportlab 行矩形覆盖+位图回贴 |
 | `src/textfix.py` | 译后中西文加空格（盘古之白） |
 | `src/docx_translator.py` | Word 文档翻译（按 run 就地替换，样式天然保留） |
+| `src/text_translator.py` | Markdown / TXT / SRT（结构与代码块用占位符保护） |
+| `src/quality.py` | 译文质量自检（截断/啰嗦/数字错漏/元话语/重复退化） |
 | `src/pipeline.py` | 编排；格式分派；跨栏配对；成本预估；后端选择与回退 |
 | `src/gui.py` | tkinter 界面（服务预设/领域/试译/三种输出模式） |
 | `src/config.py` | 配置加载/保存（ROOT = src/ 上一级） |

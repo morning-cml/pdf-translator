@@ -104,8 +104,10 @@ def _pick(kind: str = "pdf") -> list:
                 return [d] if d else []
             paths = filedialog.askopenfilenames(
                 title="选择要翻译的文档",
-                filetypes=[("支持的文档", "*.pdf;*.docx"),
-                           ("PDF", "*.pdf"), ("Word 文档", "*.docx")])
+                filetypes=[("支持的文档", "*.pdf;*.docx;*.md;*.markdown;*.txt;*.srt"),
+                           ("PDF", "*.pdf"), ("Word 文档", "*.docx"),
+                           ("Markdown", "*.md;*.markdown"),
+                           ("纯文本", "*.txt"), ("字幕", "*.srt")])
             return [str(p) for p in paths]
         finally:
             root.destroy()
@@ -205,7 +207,8 @@ class Handler(BaseHTTPRequestHandler):
                      and Path(f).suffix.lower() in SUPPORTED_EXTS]
             if not files:
                 return self._json(
-                    {"error": "没有有效的文档（支持 .pdf 与 .docx）"}, 400)
+                    {"error": "没有有效的文档（支持 "
+                              + "、".join(SUPPORTED_EXTS) + "）"}, 400)
             with JOBS_LOCK:
                 if any(j["status"] == "running" for j in JOBS.values()):
                     return self._json({"error": "已有任务在进行中"}, 409)
