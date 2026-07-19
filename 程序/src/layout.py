@@ -264,6 +264,14 @@ def compute_target_box(block, page_blocks, obstacles,
     下方且水平重叠超过本块宽度的 1/4。扩展从根上缓解「中文比英文长导致
     溢出」的问题；扩展不会越过图表，也不会低于页面下边距。
     """
+    # B1 表格单元格：译文严格限制在本格内——向下扩展会串进下一行，
+    # 表格结构当场崩掉。宁可缩号（min_size 更低）也不越格。
+    cell = getattr(block, "cell_rect", None)
+    if cell:
+        # 用**整格**宽度，不能夹到原文文字宽度——短词（"Low"）的文字宽可能
+        # 不足重排引擎的最小行宽，会导致整行被跳过、译文丢失。
+        return (cell[0] + 1.0, cell[1] + 0.5, cell[2] - 1.0, cell[3] - 0.5)
+
     limit = page_height - bottom_margin
     for o in page_blocks:
         if o is block:

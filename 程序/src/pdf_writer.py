@@ -105,8 +105,9 @@ def _draw_block(c: canvas.Canvas, b: Block, layout: PageLayout,
     if getattr(b, "from_ocr", False):
         avoid += ocr_line_shape_avoids(b, box)
     start_size = min(max(b.size, 5.0), 20.0)
+    min_size = 4.0 if getattr(b, "cell_rect", None) else 5.0
     laid = layout_block(b.translation or "", fdims, box, start_size, _measure,
-                        avoid=avoid + (placed or []))
+                        avoid=avoid + (placed or []), min_size=min_size)
     if placed is not None:   # 记录本块占位，同页后续块逐行避让，杜绝叠印
         placed.extend((it.x, it.y_top, it.x + it.w, it.y_top + it.h)
                       for it in laid.items)

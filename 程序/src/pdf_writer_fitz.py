@@ -168,8 +168,10 @@ def _draw_page(page, layout: PageLayout, blocks, src_doc,
         if getattr(b, "from_ocr", False):
             avoid += ocr_line_shape_avoids(b, box)
         start_size = min(max(b.size, 5.0), 20.0)
+        # 表格单元格空间紧、不可越格，允许缩得更小以塞进本格
+        min_size = 4.0 if getattr(b, "cell_rect", None) else 5.0
         laid = layout_block(b.translation or "", fdims, box, start_size,
-                            measure, avoid=avoid + placed)
+                            measure, avoid=avoid + placed, min_size=min_size)
         placed.extend((it.x, it.y_top, it.x + it.w, it.y_top + it.h)
                       for it in laid.items)
         color = tuple(getattr(b, "color", (0, 0, 0)) or (0, 0, 0))

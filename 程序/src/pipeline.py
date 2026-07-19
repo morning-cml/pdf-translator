@@ -50,8 +50,11 @@ _TERMINAL = set("。．.!?！？;；:：…")
 
 
 def _is_body(b) -> bool:
+    """正文块才参与跨栏缝合：标题/OCR/表格单元格都不是连续行文。"""
     return (b.translatable and not getattr(b, "bold", False)
-            and not getattr(b, "from_ocr", False) and len(b.text or "") > 60)
+            and not getattr(b, "from_ocr", False)
+            and not getattr(b, "cell_rect", None)
+            and len(b.text or "") > 60)
 
 
 def _continues(a, b) -> bool:

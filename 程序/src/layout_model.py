@@ -130,20 +130,33 @@ class LayoutModel:
 
 
 def apply_to_layout(layout, dets: List[Tuple[str, Rect]]) -> int:
-    """把检测结果保守地并入 PageLayout：返回被改为不译的块数。"""
+    """把检测结果保守地并入 PageLayout：返回被改为不译的块数。
+
+    表格的处理与 B1（逐单元格翻译）协同：
+      · 若解析器已在该表格区检出单元格 → **交给逐格路径翻译**，此处不干预；
+      · 若没检出（无框线表格等）→ 退回"整区保留原样"，避免整行合并重排把
+        表格结构搅坏。独立公式区始终保留原样。
+    """
     changed = 0
+    cells = getattr(layout, "table_cells", None) or []
+
+    def has_cells(r: Rect) -> bool:
+        x0, y0, x1, y1 = r
+        return any(x0 - 2 <= (c[0] + c[2]) / 2 <= x1 + 2
+                   and y0 - 2 <= (c[1] + c[3]) / 2 <= y1 + 2 for c in cells)
+
+    preserve = []
     for label, r in dets:
         if label in ("table", "figure"):
             layout.obstacles.append(r)
+        if label == "isolate_formula" or (label == "table" and not has_cells(r)):
+            preserve.append(r)
+
     for b in layout.blocks:
-        if not b.translatable:
+        if not b.translatable or getattr(b, "cell_rect", None):
             continue
-        cx = (b.x0 + b.x1) / 2
-        cy = (b.top + b.bottom) / 2
-        for label, (x0, y0, x1, y1) in dets:
-            if label in ("table", "isolate_formula") \
-                    and x0 <= cx <= x1 and y0 <= cy <= y1:
-                b.translatable = False
-                changed += 1
-                break
+        cx, cy = (b.x0 + b.x1) / 2, (b.top + b.bottom) / 2
+        if any(x0 <= cx <= x1 and y0 <= cy <= y1 for x0, y0, x1, y1 in preserve):
+            b.translatable = False
+            changed += 1
     return changed

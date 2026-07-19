@@ -65,6 +65,12 @@ class Block:
     color: Tuple[float, float, float] = (0.0, 0.0, 0.0)        # 文字主色（RGB 0~1）
     from_ocr: bool = False   # 来自扫描页 OCR：无文字层，写回需白底覆盖而非 redact
     bold: bool = False       # 粗体块（章节标题等）：写回时合成加粗，保留原色
+    # 表格单元格块：译文严格限制在本单元格内（不得向下扩展串行到下一行）
+    cell_rect: Optional[Rect] = None
+
+    @property
+    def in_table(self) -> bool:
+        return self.cell_rect is not None
 
     @property
     def width(self) -> float:
@@ -85,6 +91,8 @@ class PageLayout:
     obstacles: List[Rect] = field(default_factory=list)
     # 疑似扫描页（大图无文字层）但 OCR 组件不可用——供 pipeline 提示安装
     needs_ocr: bool = False
+    # 本页检测到的表格单元格矩形（B1）；空表示无表格
+    table_cells: List[Rect] = field(default_factory=list)
 
 
 def _median(values, default=0.0):
@@ -485,9 +493,14 @@ def _make_block(lines, page_index, from_ocr: bool = False) -> Block:
 _MATH_SYMS = set("=+*/^_|<>{}\\")
 
 
-def _is_translatable(text: str, from_ocr: bool = False, is_bold: bool = False) -> bool:
+def _is_translatable(text: str, from_ocr: bool = False, is_bold: bool = False,
+                     in_table: bool = False) -> bool:
     # 占位符不参与可译性判断（公式已被抽走，剩余文字才是判断对象）
     t = PLACEHOLDER_RE.sub("", text).strip()
+    if in_table:
+        # 表格单元格：短标签才是常态（"Low"/"Condition"/"46 students"），
+        # 只要含字母就翻；纯数字/破折号等保持原样。
+        return any(c.isalpha() and ord(c) < 128 for c in t) and len(t) >= 2
     if len(t) < 3:
         return False
     words = [w for w in t.split() if any(c.isalpha() for c in w)]
@@ -586,6 +599,69 @@ def _collect_obstacles(page, layout: PageLayout) -> None:
         pass
 
 
+def _table_cell_rects(page) -> List[Rect]:
+    """检测表格并返回所有单元格矩形（B1）。
+
+    保守判据，避免把版面分隔线误判成表格：至少 2×2、总单元格 ≥4、
+    表格面积不超过页面 85%、单元格尺寸合理。
+    """
+    out: List[Rect] = []
+    try:
+        pw, ph = float(page.width), float(page.height)
+        for t in page.find_tables():
+            cells = [c for c in (t.cells or []) if c]
+            if len(cells) < 4:
+                continue
+            x0, top, x1, bottom = (float(v) for v in t.bbox)
+            if (x1 - x0) * (bottom - top) > 0.85 * pw * ph:
+                continue
+            xs = {round(float(c[0]), 1) for c in cells}
+            ys = {round(float(c[1]), 1) for c in cells}
+            if len(xs) < 2 or len(ys) < 2:      # 需真正的行列结构
+                continue
+            for c in cells:
+                cx0, ctop, cx1, cbottom = (float(v) for v in c)
+                if cx1 - cx0 >= 8 and cbottom - ctop >= 6:
+                    out.append((cx0, ctop, cx1, cbottom))
+    except Exception:  # noqa: BLE001 — 表格检测失败不影响正文解析
+        return []
+    return out
+
+
+def _in_rect(w, r: Rect) -> bool:
+    cx = (float(w["x0"]) + float(w["x1"])) / 2
+    cy = (float(w["top"]) + float(w["bottom"])) / 2
+    return r[0] <= cx <= r[2] and r[1] <= cy <= r[3]
+
+
+def _build_cell_blocks(words, cells: List[Rect], page_index: int,
+                       page_width: float, counter: List[int]):
+    """把落在单元格内的词就地成块（一格 = 一个翻译单元）。
+
+    返回 (单元格块列表, 剩余的非表格词)。逐格独立成块是关键——整行合并会
+    让译文横跨列被重排，表格结构当场崩掉。
+    """
+    blocks: List[Block] = []
+    claimed = set()
+    for cell in cells:
+        idxs = [i for i, w in enumerate(words)
+                if i not in claimed and _in_rect(w, cell)]
+        if not idxs:
+            continue
+        claimed.update(idxs)
+        cell_words = [words[i] for i in idxs]
+        lines = _group_lines(cell_words, None, page_width, counter)
+        if not lines:
+            continue
+        b = _make_block(lines, page_index)          # 一格一块，不再二次切分
+        b.cell_rect = cell
+        b.translatable = _is_translatable(b.text, in_table=True) \
+            and (b.x1 - b.x0) >= 8.0
+        blocks.append(b)
+    rest = [w for i, w in enumerate(words) if i not in claimed]
+    return blocks, rest
+
+
 def _looks_scanned(page) -> bool:
     """无文字层且有大图覆盖 → 疑似扫描页。"""
     try:
@@ -634,6 +710,21 @@ def _parse_page(page, page_index, ocr=None) -> PageLayout:
         layout.obstacles = []
 
     counter = [0]  # 页内公式全局编号
+
+    # B1 表格：先把单元格内的词就地成块，剩余词再走正常正文流程。
+    # 这样表格既能被翻译，又不会因整行合并重排而结构崩坏。（OCR 页无矢量
+    # 表格线，find_tables 无从检测，故仅对文字版启用。）
+    cell_blocks: List[Block] = []
+    if not from_ocr:
+        cells = _table_cell_rects(page)
+        if cells:
+            layout.table_cells = cells
+            cell_blocks, words = _build_cell_blocks(
+                words, cells, page_index, page.width, counter)
+            if not words:
+                layout.blocks = cell_blocks
+                return layout
+
     split_x = _detect_split_x(words, page.width)
     if split_x is None:
         # 首页常见「整幅标题/摘要 + 下半页双栏」混排：全页检测不到中缝时，
@@ -662,6 +753,7 @@ def _parse_page(page, page_index, ocr=None) -> PageLayout:
         _promote_full_tails(full, right)
         for grp in (full, left, right):
             layout.blocks.extend(_group_blocks(grp, page_index, from_ocr))
+    layout.blocks.extend(cell_blocks)
     return layout
 
 
