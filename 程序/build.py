@@ -415,9 +415,13 @@ def update_index() -> None:
         "本文件由 `build.py` 自动维护，**纳入 git**。二进制产物体积大不入库，",
         "但每一代构建的版本号/时间/来源提交/体积在此永久留档。",
         "对应的功能差异见 [`../../CHANGELOG.md`](../../CHANGELOG.md)。", "",
+        "> **注意本文件只记录本机构建**。正式对外发布的版本由 GitHub Actions 在",
+        "> 干净环境构建并挂在",
+        f"> [Releases]({HOMEPAGE}/releases) —— 那里才是分发给用户的权威列表，",
+        "> 发布流程是推送 `v*.*.*` tag 自动触发。本地构建多为开发验证用。", "",
         "> 构建脚本不会删除 release/ 下的任何历史产物；`--overwrite` 重建同一",
         "> 版本时，旧产物移入 `_history/` 而非删除。", "",
-        "## 当前版本", "",
+        "## 本机构建", "",
     ]
     lines += table(current) if current else ["_（暂无）_"]
     if history:
