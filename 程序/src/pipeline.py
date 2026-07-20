@@ -369,8 +369,13 @@ def translate_pdf(
         if ph_failed:
             report(f"提示：{ph_failed} 段公式占位符校验未通过，已保留原文以保住公式位置", 0.90)
     elif any(L.needs_ocr for L in layouts):
-        report("未提取到可翻译文字：这是扫描版 PDF，且缺少 OCR 组件。"
-               "请运行：pip install rapidocr-onnxruntime 后重试", 0.9)
+        # 提示必须分场景：打包版用户没有 pip，让他"pip install"是死路一条，
+        # 正确出路是换完整版（full）。源码运行才适用装依赖。
+        from .paths import is_frozen
+        how = ("请换用**完整版（full）**，精简版（lite）不含扫描版识别组件"
+               if is_frozen() else
+               "请运行：pip install rapidocr-onnxruntime 后重试")
+        report(f"未提取到可翻译文字：这是扫描版 PDF，且缺少 OCR 组件。{how}", 0.9)
     else:
         report("未提取到可翻译文字（可能是扫描版 PDF）", 0.9)
 

@@ -75,6 +75,12 @@ DOC_ITEMS = [
 
 # OCR 与版面模型体积极大，精简版不含
 OCR_MODULES = ["rapidocr_onnxruntime", "onnxruntime", "cv2"]
+# full 版必须整包收进 rapidocr：它的三个 .onnx 模型与 config.yaml 是**包数据**，
+# 且 src/ocr.py 里是函数内延迟 import，PyInstaller 静态分析扫不到。
+# 只写 --hidden-import 不够（模型不会被带上），必须 --collect-all。
+# 教训：v1.0.0 的 full 版就因为漏了这行，白白比 lite 大 150MB（onnxruntime+cv2
+# 是被版面模型那条路径捎带进去的），而招牌功能"扫描版 OCR"其实用不了。
+OCR_COLLECT = ["rapidocr_onnxruntime"]
 HIDDEN_IMPORTS = [
     "pdfplumber", "reportlab", "pypdf", "requests", "fitz", "docx",
     "webview", "tkinter", "tkinter.filedialog",
@@ -271,6 +277,9 @@ def build(profile: str, do_zip: bool, sign_cmd: str | None,
     if profile == "lite":
         for mod in OCR_MODULES:
             cmd += ["--exclude-module", mod]
+    else:
+        for mod in OCR_COLLECT:
+            cmd += ["--collect-all", mod]
     cmd += ["--exclude-module", "pytest", "--exclude-module", "matplotlib"]
     cmd.append(str(ENTRY))
 
@@ -313,9 +322,47 @@ def build(profile: str, do_zip: bool, sign_cmd: str | None,
                     z.write(f, f.relative_to(app_dir.parent))
         log(f"已生成 {zip_path.name}（{zip_path.stat().st_size / 1048576:.1f} MB）")
 
+    verify_build(app_dir, profile)
     write_checksums(out_root)
     update_index()
     return out_root
+
+
+def verify_build(app_dir: Path, profile: str) -> None:
+    """产物自检：确认这一档该有的东西真的进包了。
+
+    存在的意义：v1.0.0 的 full 版曾静默漏掉 rapidocr——exe 能跑、界面正常、
+    体积也比 lite 大（onnxruntime/cv2 被别的路径捎带进去了），唯独扫描版 PDF
+    永远识别不出来。这种"看着对、实则少了招牌功能"的缺陷只能靠打包后检查内容
+    发现，光看构建成功和体积都会漏。
+    """
+    internal = app_dir / "_internal"
+    problems: list[str] = []
+
+    exe = app_dir / f"{APP_NAME}.exe"
+    if not exe.is_file():
+        problems.append(f"缺少可执行文件 {exe.name}")
+    if not (internal / "web" / "index.html").is_file():
+        problems.append("缺少前端资源 web/index.html（界面会打不开）")
+
+    ocr_pkg = internal / "rapidocr_onnxruntime"
+    models = list(ocr_pkg.rglob("*.onnx")) if ocr_pkg.is_dir() else []
+    if profile == "full":
+        if not ocr_pkg.is_dir():
+            problems.append("full 版缺少 rapidocr_onnxruntime 包——扫描版 OCR 用不了")
+        elif len(models) < 2:
+            problems.append(f"full 版 rapidocr 模型不全（只找到 {len(models)} 个 .onnx）")
+    else:
+        if ocr_pkg.exists():
+            problems.append("lite 版不该包含 rapidocr_onnxruntime")
+
+    if problems:
+        for p in problems:
+            log(f"[×] 自检失败：{p}")
+        sys.exit("\n产物自检未通过，构建视为失败（产物保留在原地供排查）。\n")
+
+    detail = f"，OCR 模型 {len(models)} 个" if profile == "full" else "，无 OCR（符合 lite）"
+    log(f"产物自检通过：exe + 前端资源齐全{detail}")
 
 
 def _scan(d: Path) -> dict | None:
