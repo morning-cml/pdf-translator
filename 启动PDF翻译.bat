@@ -28,12 +28,12 @@ if not defined PY (
   exit /b 1
 )
 
-%PY% -c "import pdfplumber, reportlab, pypdf, requests, tkinter, docx" >nul 2>nul
+%PY% -c "import pdfplumber, reportlab, pypdf, requests, tkinter, docx, pptx" >nul 2>nul
 if errorlevel 1 (
   echo.
   echo    首次运行，正在自动安装所需组件，请稍候几分钟……
   echo.
-  %PY% -m pip install pdfplumber reportlab pypdf requests pymupdf fonttools rapidocr-onnxruntime python-docx pywebview
+  %PY% -m pip install pdfplumber reportlab pypdf requests pymupdf fonttools rapidocr-onnxruntime python-docx python-pptx pywebview
   if errorlevel 1 (
     echo.
     echo    [x] 组件安装失败，请检查网络连接后重新双击本文件。

@@ -108,8 +108,10 @@ def _pick(kind: str = "pdf") -> list:
                 return [d] if d else []
             paths = filedialog.askopenfilenames(
                 title="选择要翻译的文档",
-                filetypes=[("支持的文档", "*.pdf;*.docx;*.md;*.markdown;*.txt;*.srt"),
+                filetypes=[("支持的文档",
+                            "*.pdf;*.docx;*.pptx;*.md;*.markdown;*.txt;*.srt"),
                            ("PDF", "*.pdf"), ("Word 文档", "*.docx"),
+                           ("PowerPoint", "*.pptx"),
                            ("Markdown", "*.md;*.markdown"),
                            ("纯文本", "*.txt"), ("字幕", "*.srt")])
             return [str(p) for p in paths]

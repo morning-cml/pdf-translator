@@ -16,8 +16,9 @@ fonttools>=4.40.0
 # Optional: without it, scanned PDFs are reported with an install hint.
 rapidocr-onnxruntime>=1.4.0
 
-# Word (.docx) translation support. MIT licensed - safe for commercial use.
+# Word (.docx) & PowerPoint (.pptx) translation. MIT licensed - commercial-safe.
 python-docx>=1.1.0
+python-pptx>=1.0.0
 
 # Native app window for the web UI (BSD). Optional: without it the UI opens
 # in the default browser instead. Uses the system WebView2 on Windows.

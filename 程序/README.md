@@ -57,6 +57,7 @@ py samples/make_scanned.py                # 生成扫描版样张 → 回归 OCR
 | `src/pdf_writer.py` | 【兜底】reportlab 行矩形覆盖+位图回贴 |
 | `src/textfix.py` | 译后中西文加空格（盘古之白） |
 | `src/docx_translator.py` | Word 文档翻译（按 run 就地替换，样式天然保留） |
+| `src/pptx_translator.py` | PowerPoint 翻译（文本框/表格/备注，样式保真） |
 | `src/text_translator.py` | Markdown / TXT / SRT（结构与代码块用占位符保护） |
 | `src/quality.py` | 译文质量自检（截断/啰嗦/数字错漏/元话语/重复退化） |
 | `src/languages.py` | 多语言注册中心（语言表/目标语判定/长度带/模型推荐） |

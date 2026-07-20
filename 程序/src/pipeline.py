@@ -222,7 +222,7 @@ def _estimate_line(translator, texts, cfg: Config) -> str:
 
 
 TEXT_EXTS = (".md", ".markdown", ".txt", ".srt")
-SUPPORTED_EXTS = (".pdf", ".docx") + TEXT_EXTS
+SUPPORTED_EXTS = (".pdf", ".docx", ".pptx") + TEXT_EXTS
 
 
 def translate_document(input_path: str, output_path: str, cfg: Config, **kw) -> dict:
@@ -234,12 +234,15 @@ def translate_document(input_path: str, output_path: str, cfg: Config, **kw) -> 
     if ext == ".docx":
         from .docx_translator import translate_docx
         return translate_docx(input_path, output_path, cfg, **kw)
+    if ext == ".pptx":
+        from .pptx_translator import translate_pptx
+        return translate_pptx(input_path, output_path, cfg, **kw)
     if ext in TEXT_EXTS:
         from .text_translator import translate_text_file
         return translate_text_file(input_path, output_path, cfg, **kw)
-    if ext == ".doc":
+    if ext in (".doc", ".ppt"):
         raise TranslatorError(
-            "旧版 .doc 格式不支持，请先用 Word 另存为 .docx 后再翻译。")
+            f"旧版 {ext} 格式不支持，请先用 Office 另存为 {ext}x 后再翻译。")
     return translate_pdf(input_path, output_path, cfg, **kw)
 
 
