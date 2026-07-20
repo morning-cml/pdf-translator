@@ -85,10 +85,11 @@ Translation/                       # 外层 = 用户桌面工作区
    ├─ fonts/                       # （可选）思源字体，自动嵌入
    ├─ samples/make_sample.py / make_scanned.py + 样张
    ├─ selftest_out/                # 自测输出
-   ├─ docs/项目总览.md             # 【入口】现状快照 + 遗留问题 + 未来任务排序
+   ├─ docs/项目总览.md             # 【入口】现状快照 + 遗留问题 + 未来任务快照
+   ├─ docs/后续规划.md             # 【规划】v1.0 后的六大主题 + 推进顺序
    ├─ docs/交接说明_HANDOFF.md     # 完整开发史/算法细节/已知限制
    ├─ docs/前端设计.md             # 网页前端架构（分层/皮肤契约/API/扩展路线）
-   ├─ docs/未来路线图.md           # 五大改进方向 + 进度表 + 竞品调研
+   ├─ docs/未来路线图.md           # 历史决策与调研（许可分析/竞品，已归档）
    ├─ docs/第三方许可.md           # 依赖许可清单与 AGPL 约束
    ├─ docs/archive/                # 已完成的历史任务卡
    └─ src/                         # 见模块一览
