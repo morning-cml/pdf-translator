@@ -1,22 +1,29 @@
 """一键打包脚本（C1）。
 
 用法（在 程序/ 目录下）：
-    py build.py                     # 完整版（含 OCR），输出到 release/v1.0.0/
+    py build.py                     # 完整版（含 OCR），输出到 release/v1.0.0-full/
     py build.py --profile lite      # 精简版（无 OCR，体积小很多）
     py build.py --set-version 1.1.0 # 改版本号后再构建
     py build.py --zip               # 额外打包成 zip 便于分发
+    py build.py --overwrite         # 重建同一版本（旧产物归档而非删除）
     py build.py --clean             # 只清理构建中间产物
     py build.py --list              # 查看已构建的历史版本
 
 产物布局（多版本互不干扰，不会把文件夹搞乱）：
     release/
-      v1.0.0/
+      RELEASES.md              ← 版本台账，纳入 git；二进制不入库也有永久记录
+      v1.0.0-full/
         PDF翻译工具/          ← 给用户的整个文件夹（内含 exe）
         PDF翻译工具-v1.0.0-full.zip
         SHA256SUMS.txt         ← 完整性校验
         build_info.json        ← 版本/提交/时间/profile
-      v1.1.0/…
+      v1.0.0-lite/…
+      _history/                ← 被 --overwrite 顶替的旧产物，只进不出
     build/                     ← 中间产物，可随时删
+
+**版本保全原则**：本脚本任何情况下都不删除 release/ 下的历史产物。目标目录
+已存在时默认直接中止（提示改版本号）；确要重建同一版本需显式加 --overwrite，
+旧产物会被**移动**到 _history/<名字>-<时间戳>/ 留档。清理只发生在 build/。
 
 关于"防逆向"：本项目采用 AGPL-3.0，**分发时必须提供完整源代码**，因此对
 二进制做混淆在法律与实际上都无意义（源码本来就公开），还可能妨碍 AGPL
@@ -49,6 +56,8 @@ from src.version import (APP_NAME, APP_NAME_EN, COPYRIGHT,  # noqa: E402
 
 BUILD_DIR = ROOT / "build"
 RELEASE_DIR = ROOT / "release"
+HISTORY_DIR = RELEASE_DIR / "_history"     # 被覆盖的旧产物移到这里，绝不删除
+INDEX_FILE = RELEASE_DIR / "RELEASES.md"   # 每一代版本的永久台账（纳入 git）
 ENTRY = ROOT / "webui.py"
 
 # 随程序分发的只读资源（源 → 包内相对路径）
@@ -116,17 +125,24 @@ def list_releases() -> None:
     if not RELEASE_DIR.is_dir():
         print("尚无任何已构建版本。")
         return
-    print(f"{'版本':<12}{'构建时间':<22}{'profile':<8}{'大小':>10}")
-    print("-" * 54)
-    for d in sorted(RELEASE_DIR.iterdir()):
-        info = d / "build_info.json"
-        if not info.is_file():
-            continue
-        meta = json.loads(info.read_text(encoding="utf-8"))
-        size = sum(f.stat().st_size for f in d.rglob("*") if f.is_file())
-        print(f"{meta.get('version', '?'):<12}"
-              f"{meta.get('built_at', '?')[:19]:<22}"
-              f"{meta.get('profile', '?'):<8}{size / 1048576:>9.1f}M")
+    def show(title: str, root: Path) -> int:
+        rows = [m for m in (_scan(d) for d in sorted(root.iterdir())) if m]
+        if not rows:
+            return 0
+        print(f"\n{title}")
+        print(f"{'版本':<10}{'profile':<9}{'构建时间':<21}{'提交':<10}{'大小':>9}")
+        print("-" * 60)
+        for m in sorted(rows, key=lambda x: x.get("built_at", ""), reverse=True):
+            print(f"{m.get('version', '?'):<10}{m.get('profile', '?'):<9}"
+                  f"{m.get('built_at', '?')[:19].replace('T', ' '):<21}"
+                  f"{m.get('commit', '?'):<10}{m['_size'] / 1048576:>8.1f}M")
+        return len(rows)
+
+    n = show("当前版本：", RELEASE_DIR)
+    if HISTORY_DIR.is_dir():
+        show("被顶替的旧产物（release/_history/，未删除）：", HISTORY_DIR)
+    if not n:
+        print("尚无任何已构建版本。")
 
 
 # ---------------------------------------------------------------------------
@@ -192,15 +208,28 @@ def make_version_file(path: Path, version: str) -> Path:
 # ---------------------------------------------------------------------------
 
 def build(profile: str, do_zip: bool, sign_cmd: str | None,
-          obfuscate: bool) -> Path:
+          obfuscate: bool, overwrite: bool = False) -> Path:
     version = __version__
     # full 与 lite 是同一版本的两个产物，各自独立目录，互不覆盖
     out_root = RELEASE_DIR / f"v{version}-{profile}"
     app_dir = out_root / APP_NAME
 
+    # 历史产物只归档、不删除：构建过的每一代都必须留得住
     if out_root.exists():
-        log(f"清理已存在的 {out_root.relative_to(ROOT)}")
-        shutil.rmtree(out_root)
+        rel = out_root.relative_to(ROOT)
+        if not overwrite:
+            sys.exit(
+                f"\n[×] {rel} 已存在，构建中止（不覆盖历史版本）。\n\n"
+                f"    发布新版（推荐）：py build.py --set-version X.Y.Z "
+                f"--profile {profile}\n"
+                f"    重建这一版：      py build.py --profile {profile} "
+                f"--overwrite\n"
+                f"                      （旧产物移到 release/_history/，不删除）\n")
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+        archived = HISTORY_DIR / f"{out_root.name}-{stamp}"
+        shutil.move(str(out_root), str(archived))
+        log(f"旧产物已归档：release/_history/{archived.name}（未删除）")
     if BUILD_DIR.exists():
         shutil.rmtree(BUILD_DIR)
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
@@ -285,7 +314,66 @@ def build(profile: str, do_zip: bool, sign_cmd: str | None,
         log(f"已生成 {zip_path.name}（{zip_path.stat().st_size / 1048576:.1f} MB）")
 
     write_checksums(out_root)
+    update_index()
     return out_root
+
+
+def _scan(d: Path) -> dict | None:
+    info = d / "build_info.json"
+    if not d.is_dir() or not info.is_file():
+        return None
+    try:
+        meta = json.loads(info.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
+    meta["_dir"] = d.name
+    meta["_size"] = sum(f.stat().st_size for f in d.rglob("*") if f.is_file())
+    return meta
+
+
+def update_index() -> None:
+    """维护 release/RELEASES.md —— 每一代版本的永久台账。
+
+    二进制产物太大不入 git（发布走 GitHub Releases），但**记录必须入 git**：
+    哪一版、什么时候、由哪个提交构建、多大、校验和多少。这样即使本地
+    release/ 丢了，也永远知道曾经发过什么、能从哪个提交精确重建。
+    """
+    if not RELEASE_DIR.is_dir():
+        return
+    current = [m for m in (_scan(d) for d in sorted(RELEASE_DIR.iterdir())) if m]
+    history = []
+    if HISTORY_DIR.is_dir():
+        history = [m for m in (_scan(d) for d in sorted(HISTORY_DIR.iterdir()))
+                   if m]
+
+    def table(rows: list) -> list:
+        out = ["| 版本 | profile | 构建时间 | 提交 | 大小 | 目录 |",
+               "| --- | --- | --- | --- | --- | --- |"]
+        for m in sorted(rows, key=lambda x: x.get("built_at", ""), reverse=True):
+            dirty = " ⚠️脏工作区" if m.get("dirty_worktree") else ""
+            out.append(
+                f"| {m.get('version', '?')} | {m.get('profile', '?')} "
+                f"| {m.get('built_at', '')[:19].replace('T', ' ')} "
+                f"| `{m.get('commit', '?')}`{dirty} "
+                f"| {m['_size'] / 1048576:.1f} MB | `{m['_dir']}` |")
+        return out
+
+    lines = [
+        "# 版本台账（Releases）", "",
+        "本文件由 `build.py` 自动维护，**纳入 git**。二进制产物体积大不入库，",
+        "但每一代构建的版本号/时间/来源提交/体积在此永久留档。",
+        "对应的功能差异见 [`../../CHANGELOG.md`](../../CHANGELOG.md)。", "",
+        "> 构建脚本不会删除 release/ 下的任何历史产物；`--overwrite` 重建同一",
+        "> 版本时，旧产物移入 `_history/` 而非删除。", "",
+        "## 当前版本", "",
+    ]
+    lines += table(current) if current else ["_（暂无）_"]
+    if history:
+        lines += ["", "## 被顶替的旧产物（`_history/`）", ""] + table(history)
+    lines += ["", f"_最后更新：{datetime.now().astimezone().isoformat()[:19]}_",
+              ""]
+    INDEX_FILE.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+    log(f"版本台账已更新：release/{INDEX_FILE.name}（{len(current)} 个版本）")
 
 
 def write_checksums(out_root: Path) -> None:
@@ -309,6 +397,8 @@ def main() -> int:
                     help='代码签名命令，如 "signtool sign /fd SHA256 /a"')
     ap.add_argument("--obfuscate", action="store_true",
                     help="代码混淆（AGPL 下无意义，当前会被忽略）")
+    ap.add_argument("--overwrite", action="store_true",
+                    help="目标目录已存在时重建（旧产物移入 release/_history/，不删除）")
     ap.add_argument("--clean", action="store_true", help="仅清理中间产物")
     ap.add_argument("--list", action="store_true", help="列出已构建版本")
     args = ap.parse_args()
@@ -335,7 +425,8 @@ def main() -> int:
     except ImportError:
         sys.exit("缺少打包组件，请先运行：py -m pip install pyinstaller")
 
-    out = build(args.profile, args.zip, args.sign, args.obfuscate)
+    out = build(args.profile, args.zip, args.sign, args.obfuscate,
+                args.overwrite)
     size = sum(f.stat().st_size for f in out.rglob("*") if f.is_file())
     print(f"\n构建完成 ✔  {out.relative_to(ROOT)}  共 {size / 1048576:.1f} MB")
     print(f"给用户的文件夹：{(out / APP_NAME).relative_to(ROOT)}")

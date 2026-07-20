@@ -98,18 +98,26 @@ Translation/                       # 外层 = 用户桌面工作区
 ## 打包发布（build.py）
 
 ```bash
-py build.py                     # 完整版（含 OCR）→ release/v1.0.0/
+py build.py                     # 完整版（含 OCR）→ release/v1.0.0-full/
 py build.py --profile lite      # 精简版（无 OCR，体积小很多）
 py build.py --set-version 1.1.0 # 改版本号后再构建
 py build.py --zip               # 额外产出 zip
+py build.py --overwrite         # 重建同一版本（旧产物归档而非删除）
 py build.py --list              # 查看已构建的历史版本
-py build.py --clean             # 清理中间产物
+py build.py --clean             # 清理中间产物（只动 build/，不动 release/）
 ```
 
 - **版本唯一真源**：`src/version.py`；Windows 文件属性、界面关于、
   `build_info.json` 全部读它。
-- **多版本互不干扰**：产物落在 `release/v<版本>/`，含 exe 文件夹、zip、
-  `SHA256SUMS.txt`、`build_info.json`（版本/git 提交/时间/profile）。
+- **多版本互不干扰**：产物落在 `release/v<版本>-<profile>/`，含 exe 文件夹、
+  zip、`SHA256SUMS.txt`、`build_info.json`（版本/git 提交/时间/profile）。
+- **历史产物只增不删**：构建脚本在任何情况下都不会删除 `release/` 下的东西。
+  目标目录已存在时**默认中止**并提示改版本号；确要重建同一版本才用
+  `--overwrite`，旧产物被**移动**到 `release/_history/<名字>-<时间戳>/` 留档。
+- **版本台账入库**：`release/RELEASES.md` 由构建脚本自动维护并**纳入 git**
+  （`.gitignore` 里对它单独取反）。二进制体积大不入库、走 GitHub Releases，
+  但"发过哪些版本、什么时候、由哪个提交构建、多大"永久可查——即使本地
+  `release/` 丢了也能从对应提交精确重建。功能差异见 `../CHANGELOG.md`。
 - **图标自动生成**：从皮肤里的原创吉祥物 SVG 渲染成多尺寸 `.ico`，无需美术资源。
 - **路径隔离**（`src/paths.py`）：只读资源走 `sys._MEIPASS`；配置/缓存/模型/
   字体写到 **exe 同级 `data/`**（便携），该处不可写时退回 `%APPDATA%`。
