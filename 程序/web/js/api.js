@@ -13,6 +13,7 @@ export const api = {
   config: () => j("/api/config"),
   saveConfig: (c) => post("/api/config", c),
   themes: () => j("/api/themes"),
+  languages: () => j("/api/languages"),
   pick: (type = "pdf") => post("/api/pick", { type }),
   test: (o) => post("/api/test", o),
   start: (payload) => post("/api/jobs", payload),

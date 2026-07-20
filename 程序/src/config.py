@@ -26,8 +26,9 @@ DEFAULTS = {
     "base_url": "https://api.deepseek.com",
     "model": "deepseek-v4-pro",
     "temperature": 1.0,
-    "source_lang": "英文",
-    "target_lang": "中文",
+    # B5 多语言：源/目标用语言代码（auto/en/zh/ja/ko/de/fr/es/ru/pt/it）
+    "source_lang": "auto",
+    "target_lang": "zh",
     # translated = 纯译文（覆盖原文）；bilingual = 双语对照（原文页 + 译文页）
     "output_mode": "translated",
     "glossary_path": "glossary/cs_terms.csv",
@@ -59,8 +60,8 @@ class Config:
     base_url: str = "https://api.deepseek.com"
     model: str = "deepseek-v4-pro"
     temperature: float = 1.0
-    source_lang: str = "英文"
-    target_lang: str = "中文"
+    source_lang: str = "auto"
+    target_lang: str = "zh"
     output_mode: str = "translated"
     glossary_path: str = "glossary/cs_terms.csv"
     batch_size: int = 8
@@ -114,10 +115,24 @@ def load_config(**overrides) -> Config:
     merged.update(_from_file())
     merged.update(_from_env())
     merged.update({k: v for k, v in overrides.items() if v is not None})
+    _migrate_langs(merged)   # 旧 config.json 的中文语言名 → 语言代码
     # 仅保留 Config 已知字段
     known = {f for f in Config().__dict__}
     merged = {k: v for k, v in merged.items() if k in known}
     return Config(**merged)
+
+
+# 旧版本用中文名存语言（"英文"/"中文"），迁移到 B5 的语言代码
+_LEGACY_LANG = {"英文": "en", "英语": "en", "中文": "zh", "简体中文": "zh",
+                "自动": "auto", "自动检测": "auto", "日文": "ja", "日语": "ja",
+                "德文": "de", "德语": "de", "法文": "fr", "法语": "fr"}
+
+
+def _migrate_langs(merged: dict) -> None:
+    for key in ("source_lang", "target_lang"):
+        v = merged.get(key)
+        if isinstance(v, str) and v in _LEGACY_LANG:
+            merged[key] = _LEGACY_LANG[v]
 
 
 def save_config(cfg: Config) -> None:

@@ -51,6 +51,10 @@ class BaseTranslator:
         # T1 持久化缓存：persist 为 TransCache 实例；scope 参与键（模型/领域/上下文）
         self.persist = persist
         self.cache_scope = cache_scope
+        # B5 多语言：目标语提示词名（"简体中文"/"英语"…）与源/目标代码（质量长度带用）
+        self.target_name = "简体中文"
+        self.source_code = "auto"
+        self.target_code = "zh"
 
     def _persist_key(self, text: str) -> str:
         from .transcache import TransCache
@@ -72,7 +76,7 @@ class BaseTranslator:
         首次译文（它通常仍可用，强行替换反而可能更差）。
         """
         from .quality import check, describe
-        issues = check(src, tgt)
+        issues = check(src, tgt, self.source_code, self.target_code)
         if not issues:
             return tgt
         self.quality_flags += 1
@@ -81,7 +85,8 @@ class BaseTranslator:
                                         glossary.prompt_block([src]))
         except Exception:  # noqa: BLE001
             fixed = None
-        if fixed and _ph_ok(src, fixed) and not check(src, fixed):
+        if fixed and _ph_ok(src, fixed) \
+                and not check(src, fixed, self.source_code, self.target_code):
             self.quality_fixed += 1
             return fixed
         return tgt
@@ -184,12 +189,12 @@ class BaseTranslator:
 # ---------------------------------------------------------------------------
 
 SYSTEM_PROMPT = (
-    "你是一名资深学术翻译，专注于{domain}领域，负责将{src}论文准确翻译成{tgt}。"
+    "你是一名资深学术翻译，专注于{domain}领域，负责将{src}准确翻译成{tgt}。"
     "要求：\n"
     "1. 译文专业、准确、通顺，使用学术书面语。\n"
-    "2. 保留数学公式、变量符号、代码片段、以及行内英文缩写和专有名词"
+    "2. 保留数学公式、变量符号、代码片段、以及行内缩写和专有名词"
     "（如 CNN、GPU、arXiv、URL、引用编号 [12] 等）不翻译。\n"
-    "3. 不翻译作者姓名、机构名；参考文献中的英文文献标题保持原样。\n"
+    "3. 不翻译作者姓名、机构名；参考文献中的原文文献标题保持原样。\n"
     "4. 不要添加解释、注释或原文，只输出译文本身。\n"
     "5. 必须严格遵守用户给出的术语对照表。\n"
     "6. 文中形如 ⟦F1⟧、⟦F2⟧ 的标记是公式占位符：必须原样保留在译文的对应位置，"
@@ -204,8 +209,8 @@ class DeepSeekTranslator(BaseTranslator):
         model: str = "deepseek-v4-pro",
         base_url: str = "https://api.deepseek.com",
         temperature: float = 1.0,
-        source_lang: str = "英文",
-        target_lang: str = "中文",
+        source_lang: str = "auto",
+        target_lang: str = "zh",
         batch_size: int = 12,
         max_workers: int = 4,
         timeout: int = 120,
@@ -231,8 +236,14 @@ class DeepSeekTranslator(BaseTranslator):
         self.max_retries = max_retries
         self.verify_ssl = verify_ssl
         self.thinking = thinking  # 翻译无需推理，默认关闭思考模式以大幅提速
+        # B5 多语言：source_lang/target_lang 为语言代码（auto/en/zh/ja…）
+        from . import languages as _L
+        self.source_code = source_lang or "auto"
+        self.target_code = target_lang or "zh"
+        self.target_name = _L.target_prompt_name(self.target_code)
         self.system_prompt = SYSTEM_PROMPT.format(
-            src=source_lang, tgt=target_lang, domain=domain or "计算机科学")
+            src=_L.source_prompt_name(self.source_code),
+            tgt=self.target_name, domain=domain or "计算机科学")
         if doc_context:
             # T6 全文上下文：标题+摘要片段进 system prompt，各批口径一致
             self.system_prompt += (
@@ -302,7 +313,7 @@ class DeepSeekTranslator(BaseTranslator):
         numbered = "\n\n".join(f"[[{i + 1}]] {t}" for i, t in enumerate(batch))
         instruction = (
             f"下面有 {len(batch)} 个段落，每段前有形如 [[序号]] 的编号。"
-            "请把每个段落翻译成简体中文，并按相同编号输出，格式：\n"
+            f"请把每个段落翻译成{self.target_name}，并按相同编号输出，格式：\n"
             "[[1]] 译文\n[[2]] 译文\n"
             "务必保证编号数量与输入完全一致，且只输出译文。\n\n"
         )
@@ -327,7 +338,7 @@ class DeepSeekTranslator(BaseTranslator):
             instruction += _PH_NOTE
         if glossary_block:
             instruction += glossary_block + "\n\n"
-        instruction += "把下面这段文字翻译成简体中文，只输出译文：\n\n" + text
+        instruction += f"把下面这段文字翻译成{self.target_name}，只输出译文：\n\n" + text
         return self._chat([
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": instruction},
@@ -338,7 +349,7 @@ class DeepSeekTranslator(BaseTranslator):
         """质量自检未过后的定向重译：把具体问题告诉模型，让它重来一次。"""
         instruction = (
             "上一次翻译存在问题：" + problem + "。\n"
-            "请重新把下面这段文字完整、准确地翻译成简体中文，只输出译文本身，"
+            f"请重新把下面这段文字完整、准确地翻译成{self.target_name}，只输出译文本身，"
             "不要任何说明或解释。\n\n")
         if "⟦F" in text:
             instruction = _PH_NOTE + instruction
@@ -355,7 +366,7 @@ class DeepSeekTranslator(BaseTranslator):
         phs = _PH.findall(text)
         instruction = (
             "下面文本包含 " + str(len(phs)) + " 个公式占位符：" + "、".join(phs) +
-            "。把文本翻译成简体中文，译文必须一字不差地保留这些占位符，"
+            f"。把文本翻译成{self.target_name}，译文必须一字不差地保留这些占位符，"
             "缺一个都算错误。只输出译文。\n\n"
         )
         if glossary_block:

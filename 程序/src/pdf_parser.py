@@ -493,26 +493,36 @@ def _make_block(lines, page_index, from_ocr: bool = False) -> Block:
 _MATH_SYMS = set("=+*/^_|<>{}\\")
 
 
+def _in_cjk(ch: str) -> bool:
+    """表意文字（中日）或日文假名——判定 CJK 源文用。"""
+    o = ord(ch)
+    return (0x4E00 <= o <= 0x9FFF or 0x3400 <= o <= 0x4DBF
+            or 0xF900 <= o <= 0xFAFF or 0x3040 <= o <= 0x30FF)
+
+
 def _is_translatable(text: str, from_ocr: bool = False, is_bold: bool = False,
                      in_table: bool = False) -> bool:
     # 占位符不参与可译性判断（公式已被抽走，剩余文字才是判断对象）
     t = PLACEHOLDER_RE.sub("", text).strip()
     if in_table:
         # 表格单元格：短标签才是常态（"Low"/"Condition"/"46 students"），
-        # 只要含字母就翻；纯数字/破折号等保持原样。
-        return any(c.isalpha() and ord(c) < 128 for c in t) and len(t) >= 2
+        # 只要含字母（任意脚本）就翻；纯数字/破折号等保持原样。
+        return any(c.isalpha() for c in t) and len(t) >= 2
     if len(t) < 3:
         return False
+    # 表意文字（中/日）无空格 → 按字符数而非词数判断
+    cjk = sum(1 for c in t if _in_cjk(c))
     words = [w for w in t.split() if any(c.isalpha() for c in w)]
-    # 词数<2 一般不译，但两种例外：
+    # 词数<2 一般不译，但几种例外：
     #  · OCR 行常整行丢空格（"knowledgeacquisition…"）→ 长度够即当正文；
-    #  · 粗体单词章节标题（DISCUSSION / RESULTS / METHODS 等）→ 也要译。
-    single_ok = (from_ocr and len(t) >= 12) or (is_bold and len(t) >= 4
-                                                and any(c.isalpha() for c in t))
+    #  · 粗体单词章节标题（DISCUSSION / RESULTS / METHODS 等）→ 也要译；
+    #  · CJK 源文（≥4 个表意字符）→ 无空格分不出词，按字符数放行。
+    single_ok = (from_ocr and len(t) >= 12) or cjk >= 4 or (
+        is_bold and len(t) >= 4 and any(c.isalpha() for c in t))
     if len(words) < 2 and not single_ok:
         return False
     non_space = sum(not c.isspace() for c in t)
-    letters = sum(c.isalpha() and ord(c) < 128 for c in t)
+    letters = sum(c.isalpha() for c in t)   # 任意脚本（拉丁/西里尔/CJK…）
     if non_space and letters / non_space < 0.5:
         return False
     math_syms = sum(c in _MATH_SYMS for c in t)

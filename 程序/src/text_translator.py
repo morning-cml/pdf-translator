@@ -17,6 +17,7 @@ PDF 那套公式占位符机制，于是翻译端既有的"提示词保护 + 译
 """
 from __future__ import annotations
 
+import contextvars
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -107,13 +108,19 @@ def _protect(text: str) -> Tuple[str, Dict[int, str]]:
     return text, holes
 
 
+# 目标语上下文：翻译时由 translate_text_file 设定，供解析期判"是否已是目标语"
+_target_ctx: "contextvars.ContextVar[str]" = contextvars.ContextVar(
+    "target_code", default="zh")
+
+
 def _worth_translating(text: str) -> bool:
+    from .languages import looks_like
     t = re.sub(r"⟦F\d+⟧", "", text or "").strip()
     if len(t) < 2:
         return False
-    if any("一" <= c <= "鿿" for c in t):
-        return False                       # 已是中文
-    return sum(c.isalpha() and ord(c) < 128 for c in t) >= 2
+    if looks_like(t, _target_ctx.get()):
+        return False                       # 已是目标语（B5：按目标语判定，非写死中文）
+    return sum(c.isalpha() for c in t) >= 2   # 含任意脚本字母即可译（源可为中/日/俄…）
 
 
 def _split_lines(text: str) -> Tuple[List[str], bool]:
@@ -320,9 +327,8 @@ def translate_text_file(
     should_cancel: Optional[Callable[[], bool]] = None,
 ) -> dict:
     from .glossary import Glossary
-    from .pipeline import (CancelledError, _estimate_line, _has_cjk,
-                           make_translator)
-    from .textfix import pangu
+    from .pipeline import (CancelledError, _estimate_line, _maybe_pangu,
+                           _translated, make_translator)
 
     def report(msg: str, frac: float):
         if progress:
@@ -337,6 +343,7 @@ def translate_text_file(
 
     check_cancel()
     report("正在解析文档…", 0.03)
+    _target_ctx.set(getattr(cfg, "target_lang", "zh") or "zh")  # 供解析期判目标语
     text = _read(input_path)
     segs = parser(text)
     units = [s for s in segs if s.kind == "text"]
@@ -363,12 +370,12 @@ def translate_text_file(
 
     n_done = 0
     if texts:
-        results = [pangu(t) for t in
+        results = [_maybe_pangu(t, cfg) for t in
                    translator.translate_texts(texts, glossary, tcb)]
         check_cancel()
         bilingual = getattr(cfg, "output_mode", "translated") != "translated"
         for seg, tr in zip(units, results):
-            if not _has_cjk(tr):
+            if not _translated(seg.body, tr, cfg):
                 continue                       # 模型原样退回 → 保留原文
             seg.translation = (seg.body + "\n" + tr) if bilingual else tr
             n_done += 1

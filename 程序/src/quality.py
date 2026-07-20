@@ -75,19 +75,21 @@ def _cn_forms(num: str) -> set:
     return forms
 
 
-def _missing_numbers(src: str, tgt: str) -> List[str]:
+def _missing_numbers(src: str, tgt: str, cn_forms=None) -> List[str]:
     """只查"不该被改写"的数字：≥10 的整数或带小数点的数。
 
     1~9 的小数字常被正确译为中文数字（study 2 → 实验二、2-week → 两周），
     纳入检查会大量误报——真实语料里 4 处"缺失"全是这种情况。
+    cn_forms：中文数字写法生成器（仅目标为中文时传入）。
     """
+    cn_forms = cn_forms or (lambda n: set())
     missing = []
     for n in _NUM.findall(src):
         if "." not in n and len(n.lstrip("0")) <= 1:
             continue                       # 个位数：豁免
         if n in tgt:
             continue
-        if any(f in tgt for f in _cn_forms(n)):   # 宽松：允许中文数字写法
+        if any(f in tgt for f in cn_forms(n)):   # 宽松：允许中文数字写法
             continue
         missing.append(n)
     return missing
@@ -101,29 +103,37 @@ def _max_repeat(text: str) -> int:
     return max(c.values())
 
 
-def check(src: str, tgt: str) -> List[Issue]:
-    """返回译文的质量问题列表；空列表 = 通过。"""
+def check(src: str, tgt: str, source_code: str = "en",
+          target_code: str = "zh") -> List[Issue]:
+    """返回译文的质量问题列表；空列表 = 通过。
+
+    长度带按语言对取（B5）：en→zh 用标定的 0.12–1.6；zh→en 等膨胀方向用更宽
+    的带；数字/元话语/重复检查与语言无关。目标非中文时数字检查退化为纯匹配。
+    """
+    from .languages import BY_CODE, length_band
     issues: List[Issue] = []
     cs, ct = _strip(src), _strip(tgt)
     if not ct:
         return [Issue("empty", "译文为空")]
 
-    if len(cs) > 80:
-        ratio = len(ct) / len(cs)
-        if ratio < MIN_RATIO:
+    band = length_band(source_code, target_code)
+    if band:
+        lo, hi = band
+        if len(cs) > 80 and len(ct) / len(cs) < lo:
             issues.append(Issue(
                 "too_short",
-                f"译文明显过短（仅为原文长度的 {ratio:.0%}），像是漏译或被截断，"
-                "请完整翻译全部内容"))
-    if len(cs) > 40:
-        ratio = len(ct) / len(cs)
-        if ratio > MAX_RATIO:
+                f"译文明显过短（仅为原文长度的 {len(ct) / len(cs):.0%}），"
+                "像是漏译或被截断，请完整翻译全部内容"))
+        if len(cs) > 40 and len(ct) / len(cs) > hi:
             issues.append(Issue(
                 "too_long",
-                f"译文明显过长（达原文长度的 {ratio:.0%}），可能混入了解释或重复，"
-                "请只输出对应译文"))
+                f"译文明显过长（达原文长度的 {len(ct) / len(cs):.0%}），"
+                "可能混入了解释或重复，请只输出对应译文"))
 
-    missing = _missing_numbers(cs, ct)
+    # 数字保留检查只在目标为中文时用"中文数字写法"宽松匹配；其他目标纯匹配
+    tgt_lang = BY_CODE.get(target_code)
+    cn_forms = _cn_forms if (tgt_lang and tgt_lang.code == "zh") else (lambda n: set())
+    missing = _missing_numbers(cs, ct, cn_forms)
     if missing:
         issues.append(Issue(
             "missing_numbers",

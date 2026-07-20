@@ -42,6 +42,19 @@ def _has_cjk(text: Optional[str]) -> bool:
         "㐀" <= c <= "鿿" or "豈" <= c <= "﫿" for c in text)
 
 
+def _translated(src: str, tgt: Optional[str], cfg: Config) -> bool:
+    """B5：模型是否真的产出了目标语译文（取代旧的仅判 CJK）。"""
+    from .languages import is_translated
+    return is_translated(src or "", tgt or "",
+                         getattr(cfg, "target_lang", "zh") or "zh")
+
+
+def _maybe_pangu(text: str, cfg: Config) -> str:
+    """仅当目标语为中文时套用中西文加空格。"""
+    from .languages import uses_pangu
+    return pangu(text) if uses_pangu(getattr(cfg, "target_lang", "zh")) else text
+
+
 # ---------------------------------------------------------------------------
 # T12 跨栏段落重排：被栏边/页边腰斩的段落配成同一翻译单元
 # ---------------------------------------------------------------------------
@@ -152,7 +165,9 @@ def make_translator(cfg: Config, mock: bool = False,
         from .paths import user_path
         from .transcache import TransCache
         ctx_h = hashlib.sha1(doc_context.encode("utf-8")).hexdigest()[:10]
-        scope = f"{cfg.model}|{getattr(cfg, 'domain', '')}|{ctx_h}"
+        # 语言对进 scope：换目标语不得命中旧译文缓存
+        langs = f"{getattr(cfg, 'source_lang', 'auto')}>{getattr(cfg, 'target_lang', 'zh')}"
+        scope = f"{cfg.model}|{langs}|{getattr(cfg, 'domain', '')}|{ctx_h}"
         # 缓存写用户目录：打包后临时解包目录会被清空，缓存必须持久保留
         persist = TransCache(user_path("cache", "translations.json"))
     return DeepSeekTranslator(
@@ -317,13 +332,13 @@ def translate_pdf(
 
     if texts:
         translations = translator.translate_texts(texts, glossary, tcb)
-        translations = [pangu(tr) for tr in translations]  # 中西文加空格
+        translations = [_maybe_pangu(tr, cfg) for tr in translations]  # 中文才加空格
         kept = 0
         for unit, tr in zip(units, translations):
             # 只重排真正翻译了的内容（商业文档翻译工具的最小干预原则）：
-            # 译文里没有任何中文 = 模型原样退回（引用/URL/人名/占位符回退等）
+            # 译文不是目标语 = 模型原样退回（引用/URL/人名/占位符回退等）
             # → 保留原文原排版，不抹除不重排。
-            if not _has_cjk(tr):
+            if not _translated(unit[0].text, tr, cfg):
                 for b in unit:
                     b.translation = None
                 kept += len(unit)
@@ -334,7 +349,7 @@ def translate_pdf(
                 ca, cb = _split_translation(tr, len(a.text), len(b.text))
                 a.translation, b.translation = ca, cb
         if kept:
-            report(f"{kept} 段未产生中文译文（引用/专名等），保留原文原排版", 0.90)
+            report(f"{kept} 段未产生译文（引用/专名等），保留原文原排版", 0.90)
         hits = getattr(translator, "cache_hits", 0)
         if hits:
             report(f"持久缓存命中 {hits} 段，未重复计费", 0.90)

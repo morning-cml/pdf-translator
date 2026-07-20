@@ -37,6 +37,10 @@ def main() -> int:
     ap.add_argument("--no-cache", action="store_true",
                     help="禁用持久化翻译缓存（默认开启，同段落重跑不重复计费）")
     ap.add_argument("--domain", help="学科领域（影响翻译口径，默认 计算机科学）")
+    ap.add_argument("--source", dest="source_lang",
+                    help="源语言代码：auto(默认)/en/zh/ja/ko/de/fr/es/ru/pt/it")
+    ap.add_argument("--target", dest="target_lang",
+                    help="目标语言代码：zh(默认)/en/ja/ko/de/fr/es/ru/pt/it")
     args = ap.parse_args()
 
     in_path = Path(args.input)
@@ -61,6 +65,8 @@ def main() -> int:
         max_pages=args.pages,
         use_cache=(False if args.no_cache else None),
         domain=args.domain,
+        source_lang=args.source_lang,
+        target_lang=args.target_lang,
     )
 
     def progress(msg: str, frac: float):

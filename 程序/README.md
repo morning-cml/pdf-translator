@@ -59,6 +59,7 @@ py samples/make_scanned.py                # 生成扫描版样张 → 回归 OCR
 | `src/docx_translator.py` | Word 文档翻译（按 run 就地替换，样式天然保留） |
 | `src/text_translator.py` | Markdown / TXT / SRT（结构与代码块用占位符保护） |
 | `src/quality.py` | 译文质量自检（截断/啰嗦/数字错漏/元话语/重复退化） |
+| `src/languages.py` | 多语言注册中心（语言表/目标语判定/长度带/模型推荐） |
 | `src/pipeline.py` | 编排；格式分派；跨栏配对；成本预估；后端选择与回退 |
 | `src/gui.py` | tkinter 界面（服务预设/领域/试译/三种输出模式） |
 | `src/config.py` | 配置加载/保存（ROOT = src/ 上一级） |

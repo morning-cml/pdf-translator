@@ -46,14 +46,14 @@ class _Unit:
         self.text = "".join(r.text for r in runs)
 
 
-def _worth_translating(text: str) -> bool:
+def _worth_translating(text: str, target_code: str = "zh") -> bool:
+    from .languages import looks_like
     t = (text or "").strip()
     if len(t) < 2:
         return False
-    if any("一" <= c <= "鿿" for c in t):
-        return False                      # 已是中文，不重复翻译
-    letters = sum(c.isalpha() and ord(c) < 128 for c in t)
-    return letters >= 2
+    if looks_like(t, target_code):
+        return False                      # 已是目标语（B5），不重复翻译
+    return sum(c.isalpha() for c in t) >= 2   # 任意脚本字母即可译
 
 
 def _iter_paragraphs(container, seen: set):
@@ -69,7 +69,7 @@ def _iter_paragraphs(container, seen: set):
                 yield from _iter_paragraphs(cell, seen)
 
 
-def _collect(doc) -> List[_Unit]:
+def _collect(doc, target_code: str = "zh") -> List[_Unit]:
     seen: set = set()
     containers = [doc]
     for section in doc.sections:          # 页眉页脚
@@ -88,7 +88,7 @@ def _collect(doc) -> List[_Unit]:
             if not runs:
                 continue
             u = _Unit(p, runs)
-            if _worth_translating(u.text):
+            if _worth_translating(u.text, target_code):
                 units.append(u)
     return units
 
@@ -156,8 +156,7 @@ def translate_docx(
 
     from .glossary import Glossary
     from .pipeline import (CancelledError, _doc_context, _estimate_line,
-                           _has_cjk, make_translator)
-    from .textfix import pangu
+                           _maybe_pangu, _translated, make_translator)
 
     def report(msg: str, frac: float):
         if progress:
@@ -170,7 +169,7 @@ def translate_docx(
     check_cancel()
     report("正在解析 Word 文档…", 0.03)
     doc = Document(input_path)
-    units = _collect(doc)
+    units = _collect(doc, getattr(cfg, "target_lang", "zh") or "zh")
     texts = [u.text for u in units]
     report(f"共 {len(texts)} 个待译段落", 0.08)
 
@@ -194,13 +193,13 @@ def translate_docx(
 
     n_done = 0
     if texts:
-        translations = [pangu(t) for t in
+        translations = [_maybe_pangu(t, cfg) for t in
                         translator.translate_texts(texts, glossary, tcb)]
         check_cancel()
         report("正在写回 Word 文档…", 0.93)
         bilingual = getattr(cfg, "output_mode", "translated") != "translated"
         for u, tr in zip(units, translations):
-            if not _has_cjk(tr):
+            if not _translated(u.text, tr, cfg):
                 continue          # 模型原样退回（专名/编号等）→ 保留原文
             if bilingual:
                 _append_translation(u, tr)

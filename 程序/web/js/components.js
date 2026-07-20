@@ -102,6 +102,38 @@ function comboValue(selId) {
   return (sel.value === CUSTOM ? $(selId + "-custom").value : sel.value).trim();
 }
 
+let LANGS = null;   // 后端语言表 + 推荐（单一真源，避免前后端不一致）
+
+function renderReco() {
+  const box = $("lang-reco");
+  const tgt = $("s-target").value;
+  const r = LANGS && LANGS.recommend && LANGS.recommend[tgt];
+  if (!r) { box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML = "";
+  const tip = document.createElement("span");
+  tip.innerHTML = `💡 译入此语言推荐用 <b>${r.services}</b>：${r.reason}　`;
+  box.appendChild(tip);
+  // 若推荐里的首个服务名能匹配某个预设，给一个"切换"按钮
+  const first = r.services.split("/")[0].trim();
+  const idx = SERVICES.findIndex((s) => s.name.includes(first) || first.includes(s.name.replace(/（.*/, "")));
+  if (idx >= 0 && +$("s-service").value !== idx) {
+    const btn = document.createElement("button");
+    btn.className = "reco-switch";
+    btn.textContent = `切换到 ${SERVICES[idx].name}`;
+    btn.addEventListener("click", () => {
+      $("s-service").value = idx;
+      $("s-service").dispatchEvent(new Event("change"));
+      renderReco();
+    });
+    box.appendChild(btn);
+  }
+  const note = document.createElement("div");
+  note.className = "reco-note";
+  note.textContent = LANGS.note || "";
+  box.appendChild(note);
+}
+
 export function initSettings() {
   const svc = $("s-service");
   SERVICES.forEach((s, i) => svc.add(new Option(s.name, i)));
@@ -112,7 +144,9 @@ export function initSettings() {
     const s = SERVICES[+svc.value];
     if (s.base) $("s-baseurl").value = s.base;
     if (s.models.length) comboFill("s-model", s.models, s.models[0]);
+    renderReco();
   });
+  $("s-target").addEventListener("change", renderReco);
 
   $("btn-eye").addEventListener("click", () => {
     const k = $("s-key");
@@ -137,8 +171,18 @@ export function initSettings() {
 
   initGuide();
 
-  // 用后端配置回填表单
-  return api.config().then((cfg) => {
+  // 语言表（后端单一真源）+ 配置，并行取
+  return Promise.all([api.languages(), api.config()]).then(([langs, cfg]) => {
+    LANGS = langs;
+    const fillLang = (id, list, cur) => {
+      const s = $(id);
+      s.innerHTML = "";
+      for (const l of list) s.add(new Option(l.name, l.code));
+      s.value = list.some((l) => l.code === cur) ? cur : list[0].code;
+    };
+    fillLang("s-source", langs.sources, cfg.source_lang || "auto");
+    fillLang("s-target", langs.targets, cfg.target_lang || "zh");
+
     $("s-key").value = cfg.api_key || "";
     $("s-remember").checked = !!cfg.api_key;
     // 首次引导：未配置 Key 且用户没手动关掉过，才显示
@@ -158,6 +202,7 @@ export function initSettings() {
     const models = i >= 0 ? SERVICES[i].models : [];
     comboFill("s-model", models, cfg.model || models[0] || "");
     comboFill("s-domain", DOMAINS, cfg.domain || DOMAINS[0]);
+    renderReco();
   });
 }
 
@@ -180,6 +225,8 @@ export function collectSettings() {
     model: comboValue("s-model"),
     base_url: $("s-baseurl").value.trim() || null,
     output_mode: $("s-mode").value,
+    source_lang: $("s-source").value,
+    target_lang: $("s-target").value,
     domain: comboValue("s-domain") || null,
     max_pages: Math.max(0, +$("s-trial").value || 0),
     max_workers: Math.min(32, Math.max(1, +$("s-workers").value || 8)),

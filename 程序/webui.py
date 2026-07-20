@@ -174,6 +174,10 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:  # noqa: BLE001
                 reg = []
             return self._json(reg)
+        if path == "/api/languages":
+            from src import languages as L
+            return self._json({"sources": L.sources(), "targets": L.targets(),
+                               "recommend": L.all_recommend(), "note": L.RECO_NOTE})
         if path.startswith("/api/jobs/"):
             jid = path.rsplit("/", 1)[-1]
             job = JOBS.get(jid)

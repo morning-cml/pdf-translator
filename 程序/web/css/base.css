@@ -74,6 +74,19 @@ label.check { flex-direction: row; align-items: center; gap: 6px; color: var(--c
 label.check input { width: auto; }
 label.check.inline { display: inline-flex; white-space: nowrap; font-size: 13px; }
 .custom-input { margin-top: 6px; }
+/* 语言→模型推荐（内联，随选择变化；可点击切换服务） */
+.lang-reco {
+  grid-column: 1 / -1; font-size: 13px; color: var(--c-text);
+  background: color-mix(in srgb, var(--c-accent) 12%, var(--c-surface));
+  border: 1px solid color-mix(in srgb, var(--c-accent) 40%, transparent);
+  border-radius: var(--radius); padding: 8px 12px; line-height: 1.6;
+}
+.lang-reco b { color: var(--c-primary); }
+.lang-reco .reco-switch {
+  color: var(--c-primary); cursor: pointer; text-decoration: underline;
+  background: none; border: none; font: inherit; padding: 0;
+}
+.lang-reco .reco-note { color: var(--c-text-muted); font-size: 12px; }
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 14px; }
 .grid .wide { grid-column: 1 / -1; }
 .key-row { display: flex; gap: 6px; align-items: center; }

@@ -74,19 +74,34 @@ def _tokenize(text: str) -> List[Tuple[str, object]]:
     return units
 
 
+def _char_breakable(ch: str) -> bool:
+    """该字符可单独成行（逐字断行）：仅 CJK 表意文字与日文假名。
+
+    其余一律并入"词"（不在词中断行）——这对拉丁字母、**带重音符的欧洲语言**
+    （德语 ä/ö/ü/ß、法语 é/à…，它们非 ASCII 但绝不能在词中断开）、西里尔、
+    韩文谚文都成立。中文行为不变（表意文字仍逐字可断）。
+    """
+    o = ord(ch)
+    return (0x4E00 <= o <= 0x9FFF or 0x3400 <= o <= 0x4DBF
+            or 0xF900 <= o <= 0xFAFF          # CJK 表意
+            or 0x3040 <= o <= 0x30FF)         # 日文假名
+
+
 def _split_text_units(seg: str, out: List[Tuple[str, object]]):
     buf = ""
     for ch in seg:
-        if ord(ch) < 128 and not ch.isspace():
-            buf += ch
-            continue
-        if buf:
-            out.append(("tok", buf))
-            buf = ""
         if ch.isspace():
+            if buf:
+                out.append(("tok", buf))
+                buf = ""
             out.append(("tok", " "))
-        else:
+        elif _char_breakable(ch):
+            if buf:
+                out.append(("tok", buf))
+                buf = ""
             out.append(("tok", ch))
+        else:
+            buf += ch                          # 词形字符（拉丁/重音/西里尔/谚文/数字/标点）
     if buf:
         out.append(("tok", buf))
 
