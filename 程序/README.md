@@ -1,5 +1,7 @@
 # PDF 论文翻译工具（英文 → 中文）— 技术说明
 
+[![测试](https://github.com/morning-cml/pdf-translator/actions/workflows/test.yml/badge.svg)](https://github.com/morning-cml/pdf-translator/actions/workflows/test.yml)
+
 把英文文档翻译成中文，**完整保留图片、公式、表格与排版**，译文落在原文对应
 位置。支持格式：**PDF · Word(.docx) · Markdown · TXT · SRT 字幕**。
 另有扫描版 PDF（本地 OCR）、表格逐单元格翻译、双语对照输出、译文质量自检、

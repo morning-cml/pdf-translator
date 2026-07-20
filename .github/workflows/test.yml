@@ -1,0 +1,44 @@
+name: 测试
+
+# 每次推送与 PR 都自动跑测试。依赖仓库外文件（真实论文、版面模型）的用例
+# 由 conftest.py 自动 skip，故在 GitHub 干净环境也是绿的。
+on:
+  push:
+    branches: [main]
+    paths: ["程序/**", ".github/workflows/test.yml"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: 程序
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: 安装依赖（最小集，跳过 OCR 重依赖以加速）
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-ci.txt
+
+      - name: 运行测试
+        env:
+          PYTHONUTF8: "1"
+        run: python -m pytest tests -q --junitxml=test-results.xml
+
+      - name: 上传测试报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: 程序/test-results.xml
+          if-no-files-found: ignore

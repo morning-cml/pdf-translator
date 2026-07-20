@@ -1,0 +1,11 @@
+# CI 测试用最小依赖集：只装测试真正需要的，避免拉入 OCR 那套几百 MB 的重依赖
+# （rapidocr/onnxruntime/opencv）。测试对可选组件均为 importorskip 容错，
+# 缺 OCR 时相关用例自动跳过，不影响核心回归。
+pdfplumber>=0.11.0
+reportlab>=4.0.0
+pypdf>=4.0.0
+requests>=2.28.0
+pymupdf>=1.24.0
+fonttools>=4.40.0
+python-docx>=1.1.0
+pytest>=8.0
