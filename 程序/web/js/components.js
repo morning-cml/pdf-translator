@@ -135,10 +135,15 @@ export function initSettings() {
     }
   });
 
+  initGuide();
+
   // 用后端配置回填表单
   return api.config().then((cfg) => {
     $("s-key").value = cfg.api_key || "";
     $("s-remember").checked = !!cfg.api_key;
+    // 首次引导：未配置 Key 且用户没手动关掉过，才显示
+    const dismissed = localStorage.getItem("guide-dismissed") === "1";
+    if (!cfg.api_key && !dismissed) $("guide-card").hidden = false;
     $("s-baseurl").value = cfg.base_url || "";
     $("s-mode").value = cfg.output_mode || "translated";
     $("s-trial").value = cfg.max_pages || 0;
@@ -153,6 +158,19 @@ export function initSettings() {
     const models = i >= 0 ? SERVICES[i].models : [];
     comboFill("s-model", models, cfg.model || models[0] || "");
     comboFill("s-domain", DOMAINS, cfg.domain || DOMAINS[0]);
+  });
+}
+
+function initGuide() {
+  $("guide-dismiss").addEventListener("click", () => {
+    $("guide-card").hidden = true;
+    localStorage.setItem("guide-dismissed", "1");
+  });
+  $("guide-try-mock").addEventListener("click", () => {
+    $("s-mock").checked = true;
+    $("guide-card").hidden = true;
+    $("adv").open = true;                        // 展开高级区，让用户看到勾选状态
+    toast("已开启离线测试模式，选文件后点开始即可看排版效果");
   });
 }
 

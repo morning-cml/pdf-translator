@@ -31,6 +31,35 @@
     <ul class="file-list" id="file-list"></ul>
   </section>
 
+  <!-- 首次使用引导：仅在未配置 Key 时显示 -->
+  <section class="card guide-card" id="guide-card" hidden>
+    <h2>👋 首次使用？只差一个 API Key</h2>
+    <p>本工具用大模型翻译，需要一个「钥匙」(API Key) 才能联网翻译。三选一：</p>
+    <div class="guide-options">
+      <div class="guide-opt">
+        <b>① 用 DeepSeek（推荐）</b>
+        <p>中文好、最便宜，一篇 15 页论文通常几毛钱。</p>
+        <a href="https://platform.deepseek.com/api_keys" target="_blank"
+           rel="noopener">→ 去申请 Key（sk- 开头）</a>
+        <p class="muted">申请后需充少量金额（如 10 元）。把 Key 填到下方即可。</p>
+      </div>
+      <div class="guide-opt">
+        <b>② 完全免费 · 离线</b>
+        <p>装 Ollama 跑本地模型，一分钱不花、数据不出电脑，质量略低。</p>
+        <a href="https://ollama.com" target="_blank" rel="noopener">→ 下载 Ollama</a>
+        <p class="muted">装好后在「服务」里选 Ollama 本地，无需 Key。</p>
+      </div>
+      <div class="guide-opt">
+        <b>③ 先看看效果</b>
+        <p>不花钱、不联网，用占位文字看看排版还原得怎么样。</p>
+        <button class="btn btn-sm" id="guide-try-mock">试试离线模式</button>
+        <p class="muted">勾选下方「离线测试」也是同样效果。</p>
+      </div>
+    </div>
+    <button class="guide-dismiss" id="guide-dismiss" title="我已了解，不再显示">
+      我已了解 ✕</button>
+  </section>
+
   <!-- ② 设置 -->
   <section class="card" id="settings-card">
     <h2><span class="badge">②</span> 翻译设置</h2>

@@ -82,6 +82,28 @@ details { margin-top: 12px; }
 summary { cursor: pointer; color: var(--c-text-muted); font-size: 13px; margin-bottom: 8px; }
 .hint { color: var(--c-text-muted); font-size: 12px; }
 
+/* ---- 首次使用引导 ---- */
+.guide-card { border-color: var(--c-primary); }
+.guide-card h2 { color: var(--c-primary); }
+.guide-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 12px 0 6px; }
+.guide-opt {
+  background: var(--c-surface-2); border: 1px solid var(--c-border);
+  border-radius: var(--radius); padding: 12px 14px; font-size: 13px;
+}
+.guide-opt b { font-size: 14px; }
+.guide-opt p { margin: 6px 0; color: var(--c-text); }
+.guide-opt a {
+  display: inline-block; color: var(--c-primary); font-weight: 600;
+  text-decoration: none; margin: 2px 0;
+}
+.guide-opt a:hover { text-decoration: underline; }
+.guide-dismiss {
+  background: none; border: none; color: var(--c-text-muted);
+  cursor: pointer; font-size: 13px; padding: 4px 0; margin-top: 4px;
+}
+.guide-dismiss:hover { color: var(--c-text); }
+@media (max-width: 640px) { .guide-options { grid-template-columns: 1fr; } }
+
 /* ---- 文件篮 ---- */
 .file-actions { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .file-list { list-style: none; margin: 0; padding: 0; }

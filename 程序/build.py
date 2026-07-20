@@ -194,7 +194,8 @@ def make_version_file(path: Path, version: str) -> Path:
 def build(profile: str, do_zip: bool, sign_cmd: str | None,
           obfuscate: bool) -> Path:
     version = __version__
-    out_root = RELEASE_DIR / f"v{version}"
+    # full 与 lite 是同一版本的两个产物，各自独立目录，互不覆盖
+    out_root = RELEASE_DIR / f"v{version}-{profile}"
     app_dir = out_root / APP_NAME
 
     if out_root.exists():
