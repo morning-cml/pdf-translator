@@ -5,9 +5,13 @@ __pycache__/
 *.pyc
 samples/*_zh.pdf
 samples/*_bi.pdf
-# 生成物（由 samples/make_*.py 随时重建）
+# 生成物（由 samples/make_*.py 随时重建，不入库）
 samples/sample_scanned.pdf
 samples/sample_paper_translation.pdf
+samples/sample_table.pdf
+samples/sample_doc.docx
+samples/sample_slides.pptx
+test-results.xml
 # 持久化翻译缓存与自测输出
 cache/
 selftest_out/
