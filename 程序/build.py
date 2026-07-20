@@ -54,6 +54,11 @@ sys.path.insert(0, str(ROOT))
 from src.version import (APP_NAME, APP_NAME_EN, COPYRIGHT,  # noqa: E402
                          HOMEPAGE, PUBLISHER, __version__)
 
+# zip 文件名必须纯 ASCII：GitHub Releases 上传时会把非 ASCII 字符剥掉，
+# "PDF翻译工具-v1.0.1-full.zip" 到了发布页会变成 "PDF.-v1.0.1-full.zip"，
+# 看着像坏文件。包内的文件夹仍叫中文名（zip 条目是 UTF-8，不受影响）。
+ZIP_SLUG = APP_NAME_EN.lower().replace(" ", "-")     # → pdf-translator
+
 BUILD_DIR = ROOT / "build"
 RELEASE_DIR = ROOT / "release"
 HISTORY_DIR = RELEASE_DIR / "_history"     # 被覆盖的旧产物移到这里，绝不删除
@@ -313,7 +318,7 @@ def build(profile: str, do_zip: bool, sign_cmd: str | None,
     shutil.copy2(BUILD_DIR / "build_info.json", out_root / "build_info.json")
 
     if do_zip:
-        zip_path = out_root / f"{APP_NAME}-v{version}-{profile}.zip"
+        zip_path = out_root / f"{ZIP_SLUG}-v{version}-{profile}.zip"
         log("正在压缩……")
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED,
                              compresslevel=6) as z:
