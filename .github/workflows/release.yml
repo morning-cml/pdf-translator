@@ -1,7 +1,9 @@
 name: 构建发布
 
-# 推送形如 v1.0.0 的 tag 时，自动构建 full 与 lite 两档并发布到 Releases。
-# 用法：改好 src/version.py 后 → git tag v1.0.0 && git push origin v1.0.0
+# 推送形如 v1.0.0 的 tag 时，自动在 Windows 与 macOS 上各构建 full 与 lite
+# 两档并发布到 Releases。用法：改好 src/version.py 后 →
+#   git tag v1.0.0 && git push origin v1.0.0
+# 也可在 Actions 页手动触发（workflow_dispatch）：只构建、不发布，用于验证。
 on:
   push:
     tags: ["v*.*.*"]
@@ -18,11 +20,12 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-latest
     strategy:
       matrix:
+        os: [windows-latest, macos-latest]
         profile: [full, lite]
       fail-fast: false
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: 程序
@@ -39,7 +42,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller
 
-      - name: 构建 ${{ matrix.profile }}
+      - name: 构建 ${{ matrix.profile }}（${{ matrix.os }}）
         env:
           PYTHONUTF8: "1"
         run: python build.py --profile ${{ matrix.profile }} --zip
@@ -48,13 +51,13 @@ jobs:
         id: find
         shell: pwsh
         run: |
-          $zip = Get-ChildItem release -Recurse -Filter *-${{ matrix.profile }}.zip | Select-Object -First 1
+          $zip = Get-ChildItem release -Recurse -Filter *-${{ matrix.profile }}*.zip | Select-Object -First 1
           "zip=$($zip.FullName)" >> $env:GITHUB_OUTPUT
 
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.profile }}
+          name: ${{ matrix.profile }}-${{ runner.os }}
           path: ${{ steps.find.outputs.zip }}
 
   release:
@@ -72,8 +75,11 @@ jobs:
           files: dist/**/*.zip
           generate_release_notes: true
           body: |
-            自动构建产物。两档任选其一：
+            自动构建产物。Windows 与 macOS 各两档，任选其一：
             - **full**：含扫描版 OCR，功能完整（较大）
             - **lite**：不含 OCR，体积约为 full 的一半
+
+            文件名带 `-mac` 的是 macOS 版（Apple 芯片）；其余为 Windows 版。
+            macOS 首次打开若被系统拦下，见仓库《程序/docs/Mac使用说明.md》。
 
             本软件依据 AGPL-3.0 发布，源代码即本仓库。

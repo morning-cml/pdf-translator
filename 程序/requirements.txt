@@ -21,8 +21,11 @@ python-docx>=1.1.0
 python-pptx>=1.0.0
 
 # Native app window for the web UI (BSD). Optional: without it the UI opens
-# in the default browser instead. Uses the system WebView2 on Windows.
+# in the default browser instead. Uses WebView2 on Windows, WebKit on macOS.
 pywebview>=5.0
+# macOS native-window backend for pywebview (Cocoa/WebKit via PyObjC).
+# pip 按平台标记自动跳过非 mac 环境，不影响 Windows。
+pyobjc-framework-WebKit>=10.0; sys_platform == "darwin"
 
 # Test suite (development only): python -m pytest tests -q
 # pytest>=8.0

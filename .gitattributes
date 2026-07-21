@@ -1,0 +1,5 @@
+# 行尾规范：Windows 批处理用 CRLF；shell/command 脚本用 LF（否则 mac/Linux 无法执行）
+*.bat      text eol=crlf
+*.cmd      text eol=crlf
+*.command  text eol=lf
+*.sh       text eol=lf
