@@ -396,10 +396,14 @@ def build(profile: str, do_zip: bool, sign_cmd: str | None,
 
     if do_zip:
         if IS_MAC:
+            import platform as _platform
+            m = _platform.machine()
+            arch = "arm64" if m == "arm64" else ("x64" if m in ("x86_64", "AMD64") else m)
             # 必须用 ditto：普通 zip 会破坏 .app 的可执行位与 ad-hoc 签名，用户端
             # 会「已损坏，无法打开」。ditto 完整保留 bundle 结构、权限与签名。
-            zip_path = out_root / f"{ZIP_SLUG}-v{version}-{profile}-mac.zip"
-            log("正在压缩（ditto，保留 .app 权限与签名）……")
+            # 架构进文件名：arm64=Apple 芯片、x64=Intel，两版并存不撞名。
+            zip_path = out_root / f"{ZIP_SLUG}-v{version}-{profile}-mac-{arch}.zip"
+            log(f"正在压缩（ditto，保留 .app 权限与签名；架构 {arch}）……")
             run(["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent",
                  str(app_dir), str(zip_path)])
         else:

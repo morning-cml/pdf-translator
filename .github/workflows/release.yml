@@ -22,7 +22,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [windows-latest, macos-latest, macos-13]  # macos-latest=Apple 芯片, macos-13=Intel
         profile: [full, lite]
       fail-fast: false
     runs-on: ${{ matrix.os }}
@@ -57,7 +57,7 @@ jobs:
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.profile }}-${{ runner.os }}
+          name: ${{ matrix.profile }}-${{ runner.os }}-${{ runner.arch }}
           path: ${{ steps.find.outputs.zip }}
 
   release:
@@ -79,7 +79,8 @@ jobs:
             - **full**：含扫描版 OCR，功能完整（较大）
             - **lite**：不含 OCR，体积约为 full 的一半
 
-            文件名带 `-mac` 的是 macOS 版（Apple 芯片）；其余为 Windows 版。
-            macOS 首次打开若被系统拦下，见仓库《程序/docs/Mac使用说明.md》。
+            文件名带 `-mac-arm64` 的是 Apple 芯片版、`-mac-x64` 是 Intel 版；
+            其余为 Windows 版。macOS 首次打开若被系统拦下，见仓库
+            《程序/docs/Mac使用说明.md》。
 
             本软件依据 AGPL-3.0 发布，源代码即本仓库。
