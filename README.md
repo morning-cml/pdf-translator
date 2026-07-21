@@ -15,33 +15,39 @@
 
 ## 下载使用（普通用户）
 
-到 [**Releases**](https://github.com/morning-cml/pdf-translator/releases/latest)
-下载 zip，解压后双击 `PDF翻译工具.exe` 即可，**不需要装 Python**。
-
-两个版本按需选：
+支持 **Windows** 与 **macOS**，都分「完整版 full」「精简版 lite」两档：
 
 | | 完整版 full | 精简版 lite |
 |---|---|---|
-| 体积 | 约 315 MB | 约 150 MB |
 | 扫描版 / 图片型 PDF | ✅ 内置离线 OCR | ❌ 不支持 |
 | 其余全部功能 | 完全一致 | 完全一致 |
+| 体积（解压后） | 约 315 MB | 约 150 MB |
 
 > **怎么判断要不要 full**：用阅读器打开 PDF，试着**选中文字**。选得中就用 lite
 > 足够；选不中、只能整块框选的是扫描件（纸质书扫描、拍照转的 PDF），才需要 full。
 
-**⚠️ 整个文件夹一起用**：exe 本体只有 14 MB，真正的程序在旁边的 `_internal\`
-文件夹里。只拷 exe 出来是跑不起来的。
+### Windows
 
-首次运行会引导你配置翻译服务，三选一：申请 API Key（推荐 DeepSeek，便宜）、
-装 [Ollama](https://ollama.com/) 完全免费离线跑、或先离线试用看排版效果。
-程序不含任何内置密钥，你的 Key 只存在自己电脑上。
+到 [**Releases**](https://github.com/morning-cml/pdf-translator/releases/latest)
+下载 zip，解压后双击 `PDF翻译工具.exe` 即可，**不需要装 Python**。
 
-详细用法见包内《使用说明.html》。
+> **⚠️ 整个文件夹一起用**：exe 本体只有 14 MB，真正的程序在旁边的 `_internal\`
+> 文件夹里。只拷 exe 出来是跑不起来的。
 
-**macOS 用户**：发布页目前只提供 Windows 版。Mac 可从源码运行（见下方
-「从源码运行（开发者）」）；若你拿到了打包好的 `.app`，第一次打开会被系统拦
-一下（因为未做苹果付费签名，属正常现象），按
-[《Mac 使用说明》](程序/docs/Mac使用说明.md) 放行**一次**即可，之后照常双击。
+### macOS（Apple 芯片）
+
+Mac 版与 Windows **同源构建**、已通过自动化构建验证；打包版正在内测，确认无误后
+会随下个版本发布到 Releases（文件名带 `-mac-arm64`）。现在可以：
+
+- **拿到作者给的 `.app`**：第一次打开会被 macOS 拦一下（未做苹果付费签名，属正常
+  现象），按 [《Mac 使用说明》](程序/docs/Mac使用说明.md) 放行**一次**即可，之后照常双击。
+- **Intel Mac，或想自己跑源码**：见下方 [从源码运行](#从源码运行开发者)。
+
+---
+
+**首次运行**会引导你配置翻译服务，三选一：申请 API Key（推荐 DeepSeek，便宜）、
+装 [Ollama](https://ollama.com/) 完全免费离线跑、或先离线试用看排版效果。程序不含
+任何内置密钥，你的 Key 只存在自己电脑上。详细用法见包内《使用说明.html》。
 
 ---
 

@@ -27,6 +27,9 @@ py selftest_backend.py                    # 回填后端自测（配 自测-PyMu
 py samples/make_scanned.py                # 生成扫描版样张 → 回归 OCR 管线
 ```
 
+> **macOS / Linux**：把上面的 `py` 换成 `python3`；一键启动用根目录的
+> `启动PDF翻译.command`（首次可能要 `chmod +x` 一次）。源码在三平台通用。
+
 ## 架构（数据流）
 
 ```
@@ -107,6 +110,11 @@ py build.py --list              # 查看已构建的历史版本
 py build.py --clean             # 清理中间产物（只动 build/，不动 release/）
 ```
 
+- **跨平台打包**：Windows 上产出 `.exe` 文件夹；**macOS 上产出 `.app`**
+  （`-mac-arm64` zip，用 ditto 压缩以保住 bundle 签名与权限）。PyInstaller 不能
+  交叉编译——各平台的包只能在对应平台构建；CI（`.github/workflows/release.yml`）
+  已配 Windows + macOS(Apple 芯片) 打 tag 自动构建。Intel Mac 需在 Intel 机器上
+  跑 `python3 build.py`。
 - **版本唯一真源**：`src/version.py`；Windows 文件属性、界面关于、
   `build_info.json` 全部读它。
 - **多版本互不干扰**：产物落在 `release/v<版本>-<profile>/`，含 exe 文件夹、
