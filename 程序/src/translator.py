@@ -235,7 +235,7 @@ class DeepSeekTranslator(BaseTranslator):
         self.timeout = timeout
         self.max_retries = max_retries
         self.verify_ssl = verify_ssl
-        self.thinking = thinking  # 翻译无需推理，默认关闭思考模式以大幅提速
+        self.thinking = thinking  # 开=质量优先（更准更慢），关=提速；应用默认开（见 config.py），此参数默认关仅为直接构造时的保守回退
         # B5 多语言：source_lang/target_lang 为语言代码（auto/en/zh/ja…）
         from . import languages as _L
         self.source_code = source_lang or "auto"
