@@ -10,7 +10,9 @@
   版面模型、用户字体
   - 源码运行 → `程序/`（保持现状，开发时一切在眼前）
   - 打包运行 → exe 同级的 `data/`（便携优先）；若该处不可写（如装在
-    Program Files），退回 `%APPDATA%/PDF翻译工具/`
+    Program Files、或 macOS 的 .app 包内），退回各平台用户目录下的
+    `PDF翻译工具/`（Win=%APPDATA%、mac=~/Library/Application Support、
+    Linux=~/.local/share）
 
 **关键**：用户数据绝不能放进 `_MEIPASS`——那是临时目录，程序一退出就被删，
 API Key 和翻译缓存会凭空消失。
@@ -46,6 +48,19 @@ def _writable(p: Path) -> bool:
         return False
 
 
+def _app_data_dir() -> Path:
+    """便携目录不可写时的回退：各平台的用户级应用数据目录。"""
+    if sys.platform == "win32":
+        base = Path(os.environ.get("APPDATA")
+                    or Path.home() / "AppData" / "Roaming")
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:  # Linux / 其他
+        base = Path(os.environ.get("XDG_DATA_HOME")
+                    or Path.home() / ".local" / "share")
+    return base / APP_NAME
+
+
 _user_dir_cache: Path | None = None
 
 
@@ -63,9 +78,7 @@ def user_dir() -> Path:
     if _writable(portable):
         _user_dir_cache = portable
     else:
-        appdata = Path(os.environ.get("APPDATA")
-                       or Path.home() / "AppData" / "Roaming")
-        fallback = appdata / APP_NAME
+        fallback = _app_data_dir()
         fallback.mkdir(parents=True, exist_ok=True)
         _user_dir_cache = fallback
     return _user_dir_cache

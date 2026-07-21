@@ -1,6 +1,6 @@
 """网页版前端 · 本地服务（零新依赖，标准库实现）。
 
-用法：双击外层 启动网页版.bat，或 `py webui.py`。
+用法：双击外层 启动PDF翻译.bat，或 `py webui.py`。
 只绑定 127.0.0.1（仅本机可访问）；翻译内核 100% 复用 src/pipeline。
 API 约定见 docs/前端设计.md 第 4 节。
 """
@@ -117,6 +117,15 @@ def _pick(kind: str = "pdf") -> list:
             return [str(p) for p in paths]
         finally:
             root.destroy()
+
+
+def _os_open(target: str) -> None:
+    """用系统默认程序打开本机文件/文件夹（跨平台：Win / mac / Linux）。"""
+    if sys.platform == "win32":
+        os.startfile(target)  # type: ignore[attr-defined]  # noqa: S606 — 本机打开产物
+        return
+    import subprocess
+    subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", target])
 
 
 # ---------------------------------------------------------------------------
@@ -247,7 +256,7 @@ class Handler(BaseHTTPRequestHandler):
             if body.get("folder"):
                 target = str(Path(target).parent)
             if target and Path(target).exists():
-                os.startfile(target)  # noqa: S606 — 本机打开产物
+                _os_open(target)
                 return self._json({"ok": True})
             return self._json({"ok": False, "error": "路径不存在"}, 404)
 
