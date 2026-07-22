@@ -36,6 +36,8 @@ def main() -> int:
                     help="试译模式：只翻译前 N 页（其余页保留原文，便宜预览）")
     ap.add_argument("--no-cache", action="store_true",
                     help="禁用持久化翻译缓存（默认开启，同段落重跑不重复计费）")
+    ap.add_argument("--refresh-cache", action="store_true",
+                    help="忽略已有缓存重新翻译并覆盖旧结果（上次翻得不对时用）")
     ap.add_argument("--domain", help="学科领域（影响翻译口径，默认 计算机科学）")
     ap.add_argument("--source", dest="source_lang",
                     help="源语言代码：auto(默认)/en/zh/ja/ko/de/fr/es/ru/pt/it")
@@ -64,6 +66,7 @@ def main() -> int:
         font_path=args.font_path,
         max_pages=args.pages,
         use_cache=(False if args.no_cache else None),
+        refresh_cache=(True if args.refresh_cache else None),
         domain=args.domain,
         source_lang=args.source_lang,
         target_lang=args.target_lang,

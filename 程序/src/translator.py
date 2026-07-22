@@ -51,6 +51,9 @@ class BaseTranslator:
         # T1 持久化缓存：persist 为 TransCache 实例；scope 参与键（模型/领域/上下文）
         self.persist = persist
         self.cache_scope = cache_scope
+        # 强制重译：跳过缓存**读取**（无视旧译文），但仍**写入**——用新结果覆盖
+        # 上次可能不对的旧缓存。对应"上次翻得不好，重译却因缓存还是坏的"。
+        self.cache_refresh = False
         # B5 多语言：目标语提示词名（"简体中文"/"英语"…）与源/目标代码（质量长度带用）
         self.target_name = "简体中文"
         self.source_code = "auto"
@@ -95,6 +98,20 @@ class BaseTranslator:
     def _translate_batch(self, batch: List[str], glossary_block: str) -> List[str]:
         raise NotImplementedError
 
+    def _cache_lookup(self, text: str) -> Optional[str]:
+        """持久缓存命中值——但**占位符必须仍与原文一致**才采纳。
+
+        缓存损坏（手工误改、旧版本写入、磁盘半写）时，返回的译文可能公式占位符
+        对不上；直接用会让写回端把公式贴错位或丢失。这类命中一律作废、重新翻译，
+        使缓存具备自愈能力（对应"重译同一篇因缓存反而生成不出来"的反馈）。
+        """
+        if self.persist is None or self.cache_refresh:
+            return None
+        hit = self.persist.get(self._persist_key(text))
+        if hit is not None and _ph_ok(text, hit):
+            return hit
+        return None
+
     def pending_texts(self, texts: List[str]) -> List[str]:
         """去重并剔除内存/持久缓存命中后，真正需要请求的段（供成本预估）。"""
         unique = list(dict.fromkeys(texts))
@@ -102,10 +119,8 @@ class BaseTranslator:
         for t in unique:
             if t in self._cache:
                 continue
-            if self.persist is not None:
-                hit = self.persist.get(self._persist_key(t))
-                if hit is not None:
-                    continue
+            if self._cache_lookup(t) is not None:
+                continue
             todo.append(t)
         return todo
 
@@ -115,18 +130,17 @@ class BaseTranslator:
         glossary: Glossary,
         progress_cb: Optional[Callable[[int, int], None]] = None,
     ) -> List[str]:
-        # 去重（保留首次出现顺序）；先查内存缓存，再查持久缓存（T1）
+        # 去重（保留首次出现顺序）；先查内存缓存，再查持久缓存（T1，含占位符校验）
         unique = list(dict.fromkeys(texts))
         todo = []
         for t in unique:
             if t in self._cache:
                 continue
-            if self.persist is not None:
-                hit = self.persist.get(self._persist_key(t))
-                if hit is not None:
-                    self._cache[t] = hit
-                    self.cache_hits += 1
-                    continue
+            hit = self._cache_lookup(t)
+            if hit is not None:
+                self._cache[t] = hit
+                self.cache_hits += 1
+                continue
             todo.append(t)
         batches = [todo[i:i + self.batch_size] for i in range(0, len(todo), self.batch_size)]
         done = 0

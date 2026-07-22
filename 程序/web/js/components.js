@@ -233,6 +233,7 @@ export function collectSettings() {
     render_backend: $("s-backend").value,
     thinking: $("s-thinking").checked,
     use_system_proxy: !$("s-direct").checked,
+    refresh_cache: $("s-refresh").checked,   // 忽略缓存重译（仅本次，不落盘）
     glossary_path: $("s-glossary").value.trim() || null,
   };
 }
@@ -318,6 +319,7 @@ export function initRun() {
     // 记住设置；未勾"记住"时 Key 不落盘（仅本次任务使用）
     const saved = { ...overrides };
     if (!$("s-remember").checked) saved.api_key = "";
+    delete saved.refresh_cache;   // 忽略缓存是一次性动作，不写入配置
     await api.saveConfig(saved);
     const r = await api.start({ files, overrides, mock, outdir });
     if (r.error) return toast(r.error);

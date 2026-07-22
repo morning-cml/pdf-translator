@@ -170,7 +170,7 @@ def make_translator(cfg: Config, mock: bool = False,
         scope = f"{cfg.model}|{langs}|{getattr(cfg, 'domain', '')}|{ctx_h}"
         # 缓存写用户目录：打包后临时解包目录会被清空，缓存必须持久保留
         persist = TransCache(user_path("cache", "translations.json"))
-    return DeepSeekTranslator(
+    tr = DeepSeekTranslator(
         api_key=cfg.api_key,
         model=cfg.model,
         base_url=cfg.base_url,
@@ -188,6 +188,9 @@ def make_translator(cfg: Config, mock: bool = False,
         domain=getattr(cfg, "domain", "计算机科学"),
         doc_context=doc_context,
     )
+    # 强制重译：无视旧缓存重新翻译，但把新结果写回覆盖旧的（修复坏缓存）
+    tr.cache_refresh = bool(getattr(cfg, "refresh_cache", False))
+    return tr
 
 
 def _doc_context(layouts) -> str:

@@ -44,6 +44,8 @@ DEFAULTS = {
     "font_path": "",
     # 持久化翻译缓存（cache/translations.json）：重跑同一文档不重复计费
     "use_cache": True,
+    # 强制重译：无视已有缓存重新翻译并覆盖旧结果（上次翻得不对时用；不落盘持久化）
+    "refresh_cache": False,
     # 学科领域：影响翻译提示词口径（计算机科学/通用学术/生物医学/物理学…）
     "domain": "计算机科学",
     # 试译页数：0=翻译整篇；N=只翻译前 N 页（其余页保留原文，便宜预览）
@@ -73,6 +75,7 @@ class Config:
     render_backend: str = "auto"
     font_path: str = ""
     use_cache: bool = True
+    refresh_cache: bool = False
     domain: str = "计算机科学"
     max_pages: int = 0
     price_in: float = 0.0

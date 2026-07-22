@@ -111,3 +111,35 @@ def test_pending_texts_reflects_cache(tmp_path, gloss, texts):
     t2 = StubTranslator(batch_size=4, persist=TransCache(cache_file),
                         cache_scope="s")
     assert t2.pending_texts(texts) == [], "全命中时预估应显示零请求"
+
+
+# ---------------- 缓存自愈：坏缓存丢弃重译 / 强制刷新 ----------------
+def test_corrupt_cached_placeholder_is_refetched(tmp_path, gloss):
+    """缓存里的译文若占位符对不上（缓存损坏/旧版本写入），必须作废并重译，
+    否则写回端会把公式贴错位——对应"重译同一篇因缓存反而生成不出来"。"""
+    cache_file = tmp_path / "c.json"
+    src = ["公式 ⟦F1⟧ 在此说明"]
+    StubTranslator(persist=TransCache(cache_file),
+                   cache_scope="s").translate_texts(src, gloss)
+    data = json.loads(cache_file.read_text(encoding="utf-8"))
+    key = next(iter(data))
+    data[key] = data[key].replace("⟦F1⟧", "")     # 人为弄坏：占位符丢失
+    cache_file.write_text(json.dumps(data), encoding="utf-8")
+
+    t2 = StubTranslator(persist=TransCache(cache_file), cache_scope="s")
+    out = t2.translate_texts(src, gloss)
+    assert t2.calls == 1, "坏缓存应被丢弃并重新翻译，而非直接采用"
+    assert t2.cache_hits == 0
+    assert "⟦F1⟧" in out[0], "重译后公式占位符恢复"
+
+
+def test_refresh_cache_ignores_and_overwrites(tmp_path, gloss, texts):
+    """cache_refresh=True：无视旧缓存重译，但把新结果写回覆盖旧的。"""
+    cache_file = tmp_path / "c.json"
+    StubTranslator(persist=TransCache(cache_file),
+                   cache_scope="s").translate_texts(texts, gloss)   # 先建缓存
+    t2 = StubTranslator(persist=TransCache(cache_file), cache_scope="s")
+    t2.cache_refresh = True
+    out = t2.translate_texts(texts, gloss)
+    assert t2.cache_hits == 0 and t2.calls > 0, "刷新模式应无视缓存重译"
+    assert out == ["译" + t for t in texts]
