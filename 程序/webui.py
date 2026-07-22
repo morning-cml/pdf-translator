@@ -277,6 +277,11 @@ def main(app_window: bool = True):
     app_window=True 时优先用原生应用窗口（pywebview，无地址栏），
     装不上或启动失败则自动回退到系统浏览器——两条路走的是同一套界面。
     """
+    # 启动时精准清理上次可能被强杀残留的临时文件（只删本程序自己的 .tmp/.part）
+    from src.paths import sweep_temp, user_path
+    sweep_temp(str(user_path("config.json")),
+               str(user_path("cache", "translations.json")))
+
     port = _free_port()
     srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/"

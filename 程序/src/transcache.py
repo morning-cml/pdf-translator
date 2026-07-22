@@ -25,6 +25,11 @@ class TransCache:
         self._lock = threading.Lock()
         self._dirty = False
         self._data: dict = {}
+        # 清理上次进程被强杀时可能残留的半截临时文件（精准，只删本文件的 .tmp）
+        try:
+            self.path.with_name(self.path.name + ".tmp").unlink()
+        except OSError:
+            pass
         try:
             if self.path.exists():
                 loaded = json.loads(self.path.read_text(encoding="utf-8"))

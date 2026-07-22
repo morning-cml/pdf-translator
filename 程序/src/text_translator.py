@@ -396,10 +396,10 @@ def translate_text_file(
 
     report("正在写回文档…", 0.95)
     out = "".join(s.render() for s in segs)
-    p = Path(output_path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(out, encoding="utf-8", newline="")
+    from .paths import atomic_output
+    with atomic_output(output_path) as _out:
+        Path(_out.tmp).write_text(out, encoding="utf-8", newline="")
     report("完成", 1.0)
-    return {"pages": 0, "blocks": n_done, "output": output_path,
+    return {"pages": 0, "blocks": n_done, "output": _out.path,
             "mode": getattr(cfg, "output_mode", "translated"),
             "backend": ext.lstrip(".") or "text"}

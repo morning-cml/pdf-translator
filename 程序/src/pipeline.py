@@ -383,24 +383,28 @@ def translate_pdf(
     backend = pick_backend(cfg)
     label = "PyMuPDF 精确抹除" if backend == "pymupdf" else "reportlab 覆盖（兜底）"
     report(f"正在生成译文 PDF…（回填后端：{label}）", 0.93)
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
-    if backend == "pymupdf":
-        from . import pdf_writer_fitz
-        try:
-            pdf_writer_fitz.build_output(
-                input_path, output_path, layouts, cfg.output_mode,
-                font_path=getattr(cfg, "font_path", ""))
-        except pdf_writer_fitz.BackendUnsupported as e:
-            report(f"PyMuPDF 后端不适用（{e}），回退 reportlab…", 0.94)
-            backend = "reportlab"
-        except Exception as e:  # noqa: BLE001
-            if (getattr(cfg, "render_backend", "auto") or "auto") == "pymupdf":
-                raise  # 用户强制指定时不静默回退
-            report(f"PyMuPDF 后端异常（{e}），回退 reportlab…", 0.94)
-            backend = "reportlab"
-    if backend == "reportlab":
-        build_output(input_path, output_path, layouts, cfg.output_mode)
+    # 原子写出：先写 .part，成功才落位。任何失败/取消都不会在最终路径留下
+    # 半截损坏的 PDF（那正是"重译同一篇却生成不出来/打不开"的元凶之一）。
+    from .paths import atomic_output
+    with atomic_output(output_path) as _out:
+        if backend == "pymupdf":
+            from . import pdf_writer_fitz
+            try:
+                pdf_writer_fitz.build_output(
+                    input_path, _out.tmp, layouts, cfg.output_mode,
+                    font_path=getattr(cfg, "font_path", ""))
+            except pdf_writer_fitz.BackendUnsupported as e:
+                report(f"PyMuPDF 后端不适用（{e}），回退 reportlab…", 0.94)
+                backend = "reportlab"
+            except Exception as e:  # noqa: BLE001
+                if (getattr(cfg, "render_backend", "auto") or "auto") == "pymupdf":
+                    raise  # 用户强制指定时不静默回退
+                report(f"PyMuPDF 后端异常（{e}），回退 reportlab…", 0.94)
+                backend = "reportlab"
+        if backend == "reportlab":
+            build_output(input_path, _out.tmp, layouts, cfg.output_mode)
+    output_path = _out.path   # 目标被占用时可能已自动改名
     report("完成", 1.0)
 
     return {

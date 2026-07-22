@@ -7,7 +7,6 @@
 """
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Callable, List, Optional
 
 
@@ -165,9 +164,10 @@ def translate_pptx(
     else:
         report("演示文稿中未找到可翻译的文字", 0.9)
 
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    prs.save(output_path)
+    from .paths import atomic_output
+    with atomic_output(output_path) as _out:
+        prs.save(_out.tmp)        # 原子写出：中途失败不留半截损坏演示文稿
     report("完成", 1.0)
     return {"pages": len(prs.slides._sldIdLst), "blocks": n_done,
-            "output": output_path, "mode": getattr(cfg, "output_mode", "translated"),
+            "output": _out.path, "mode": getattr(cfg, "output_mode", "translated"),
             "backend": "pptx"}

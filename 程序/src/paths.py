@@ -19,6 +19,7 @@ API Key 和翻译缓存会凭空消失。
 """
 from __future__ import annotations
 
+import contextlib
 import os
 import sys
 from pathlib import Path
@@ -111,3 +112,82 @@ def build_info() -> dict:
         except Exception:  # noqa: BLE001
             pass
     return {"version": "dev", "commit": "", "built_at": "", "profile": "source"}
+
+
+# ---------------------------------------------------------------------------
+# 原子写出 + 临时残留清理（避免中途失败留下半截损坏产物 / 垃圾文件）
+# ---------------------------------------------------------------------------
+
+def _silent_unlink(p) -> None:
+    with contextlib.suppress(OSError):
+        Path(p).unlink()
+
+
+def _free_sibling(path: Path) -> Path:
+    """在 path 同目录找一个不冲突的名字：X (1).pdf、X (2).pdf …"""
+    for i in range(1, 100):
+        cand = path.with_name(f"{path.stem} ({i}){path.suffix}")
+        if not cand.exists():
+            return cand
+    return path.with_name(f"{path.stem} ({os.getpid()}){path.suffix}")
+
+
+class OutputError(RuntimeError):
+    """最终产物无法写出（通常是目标文件被占用）。"""
+
+
+class AtomicOutput:
+    """atomic_output() 交给调用方的句柄：写 .tmp，退出时才原子落位。"""
+
+    __slots__ = ("final", "tmp", "path")
+
+    def __init__(self, final: Path):
+        self.final = final
+        self.tmp = str(final.with_name(final.name + ".part"))
+        self.path = str(final)   # 实际落位路径（目标被占用时可能自动改名）
+
+
+@contextlib.contextmanager
+def atomic_output(final_path: str):
+    """产物原子写出：先写同目录 .part，成功退出后再 os.replace 到最终名。
+
+    - 翻译/生成中途抛异常或被取消 → 删掉 .part，**绝不在最终路径留下损坏文件**
+      （否则用户看到的是一个打不开的半截 PDF，还以为"生成失败/被缓存搞坏了"）。
+    - 最终文件被占用（正被 PDF 阅读器打开、Windows 拒绝覆盖）→ 自动换一个
+      "X (1).pdf"的名字保住成果，并通过 .path 告知实际路径；实在写不出才报错。
+
+    用法：
+        with atomic_output(out) as h:
+            backend.build_output(..., h.tmp, ...)
+        actual_path = h.path
+    """
+    h = AtomicOutput(Path(final_path))
+    h.final.parent.mkdir(parents=True, exist_ok=True)
+    _silent_unlink(h.tmp)
+    try:
+        yield h
+    except BaseException:
+        _silent_unlink(h.tmp)
+        raise
+    try:
+        os.replace(h.tmp, h.final)
+    except OSError:
+        alt = _free_sibling(h.final)
+        try:
+            os.replace(h.tmp, alt)
+            h.path = str(alt)
+        except OSError as e:
+            _silent_unlink(h.tmp)
+            raise OutputError(
+                f"无法写出结果文件：“{h.final.name}”可能正被其他程序"
+                "（如 PDF 阅读器）打开。请关闭后重试。") from e
+
+
+def sweep_temp(*paths: str) -> None:
+    """精准清理**本程序自己**产生的临时残留：给定文件的 .tmp / .part 兄弟。
+
+    只删我们约定命名（.tmp 来自原子存配置/缓存，.part 来自 atomic_output）的
+    文件，绝不递归、绝不按后缀通配，避免误伤用户文件。"""
+    for base in paths:
+        for suffix in (".tmp", ".part"):
+            _silent_unlink(str(base) + suffix)
