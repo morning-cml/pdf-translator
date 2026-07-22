@@ -258,11 +258,48 @@ def output_suffix(mode: str, ext: str = ".pdf") -> str:
             "sidebyside": "_translation_sidebyside"}.get(mode, "_translation")
 
 
+_KNOWN_SERVICES = {
+    "api.deepseek.com": "DeepSeek",
+    "api.moonshot.cn": "Kimi（月之暗面）",
+    "open.bigmodel.cn": "智谱 GLM",
+    "volces.com": "豆包（火山方舟）",
+    "api.openai.com": "OpenAI",
+}
+
+
+def _is_local_url(base_url: str) -> bool:
+    from urllib.parse import urlparse
+    host = (urlparse(base_url).hostname or "").lower()
+    return host in ("127.0.0.1", "localhost", "0.0.0.0", "::1")
+
+
+def service_label(base_url: str) -> str:
+    """从接口地址推断服务名，用于给用户看的错误提示（"连不上 DeepSeek"）。"""
+    from urllib.parse import urlparse
+    host = (urlparse(base_url).hostname or base_url or "").lower()
+    if _is_local_url(base_url):
+        return "本地服务（Ollama？）"
+    for key, name in _KNOWN_SERVICES.items():
+        if host == key or host.endswith("." + key) or key in host:
+            return name
+    return host or "翻译服务"
+
+
 def check_connection(cfg: Config) -> Tuple[bool, str]:
-    """用一小段文本快速验证 API Key / 模型是否可用。返回 (是否成功, 提示)。"""
+    """翻译前的**必做**联通性预检：验证能连上服务、Key/模型是否可用。
+
+    返回 (是否成功, 面向用户的中文提示)。失败信息会点名具体服务，便于用户
+    立刻判断是"网络连不上"还是"Key 无效/模型不对"。
+    """
+    label = service_label(cfg.base_url)
+    local = _is_local_url(cfg.base_url)
+    if not cfg.api_key and not local:
+        return False, f"尚未填写 {label} 的 API Key，无法翻译。请先填写或勾选离线测试。"
     try:
         tr = DeepSeekTranslator(
-            api_key=cfg.api_key, model=cfg.model, base_url=cfg.base_url,
+            # 本地服务（Ollama）通常不需要 Key，给个占位避免构造报错
+            api_key=cfg.api_key or ("local" if local else ""),
+            model=cfg.model, base_url=cfg.base_url,
             temperature=cfg.temperature, max_retries=1, timeout=30,
             proxy=cfg.proxy, use_system_proxy=cfg.use_system_proxy,
             verify_ssl=cfg.verify_ssl, thinking=cfg.thinking,
@@ -271,11 +308,11 @@ def check_connection(cfg: Config) -> Tuple[bool, str]:
             {"role": "system", "content": "You are a translator."},
             {"role": "user", "content": "把 'hello' 翻译成中文，只输出译文。"},
         ])
-        return True, f"连接成功（模型 {cfg.model}）。返回示例：{out.strip()[:20]}"
+        return True, f"✔ 已连接 {label}（模型 {cfg.model}）。返回示例：{out.strip()[:20]}"
     except TranslatorError as e:
-        return False, str(e)
+        return False, f"✘ 无法使用 {label}：{e}"
     except Exception as e:  # noqa: BLE001
-        return False, f"连接失败：{e}"
+        return False, f"✘ 连接 {label} 失败：{e}"
 
 
 def translate_pdf(

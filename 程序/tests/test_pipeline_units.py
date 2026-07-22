@@ -1,8 +1,21 @@
-"""管线纯函数：跨栏配对（T12）、译文拆回、CJK 判定、全文语境。"""
+"""管线纯函数：跨栏配对（T12）、译文拆回、CJK 判定、全文语境、服务名推断。"""
 import pytest
 
 from src.pipeline import (_continues, _doc_context, _has_cjk,
-                          _split_translation, _unit_text)
+                          _split_translation, _unit_text, service_label)
+
+
+# ---- service_label：错误提示要点名具体服务 ----
+@pytest.mark.parametrize("url,name", [
+    ("https://api.deepseek.com", "DeepSeek"),
+    ("https://api.openai.com/v1", "OpenAI"),
+    ("https://api.moonshot.cn/v1", "Kimi（月之暗面）"),
+    ("https://open.bigmodel.cn/api/paas/v4", "智谱 GLM"),
+    ("http://127.0.0.1:11434/v1", "本地服务（Ollama？）"),
+    ("http://localhost:11434/v1", "本地服务（Ollama？）"),
+])
+def test_service_label(url, name):
+    assert service_label(url) == name
 
 
 class FakeBlock:

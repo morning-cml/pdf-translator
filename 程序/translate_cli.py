@@ -69,6 +69,14 @@ def main() -> int:
         target_lang=args.target_lang,
     )
 
+    # 翻译前必做联通性预检（离线 mock 跳过）：连不上/Key 无效就别白跑一整篇
+    if not args.mock:
+        from src.pipeline import check_connection
+        ok, msg = check_connection(cfg)
+        print(msg)
+        if not ok:
+            return 2
+
     def progress(msg: str, frac: float):
         print(f"[{int(frac * 100):3d}%] {msg}")
 

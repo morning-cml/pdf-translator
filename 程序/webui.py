@@ -63,6 +63,17 @@ def _run_job(job_id: str, files: list, overrides: dict, mock: bool,
 
     try:
         cfg = load_config(**{k: v for k, v in overrides.items() if v is not None})
+        # 翻译前**必做**：先检测翻译服务是否连得上、Key/模型是否有效。
+        # 不做的话，Key 错/连不上会让每一批都失败、白跑一整篇还产出未翻译的文档。
+        # 离线测试（mock）无需联网，跳过。
+        if not mock and not job["cancel"].is_set():
+            job["message"] = "正在检测翻译服务连接…"
+            ok, msg = check_connection(cfg)
+            job["log"].append(msg)
+            if not ok:
+                job["status"] = "error"
+                job["message"] = msg
+                return
         n = max(len(files), 1)
         for i, f in enumerate(files):
             if job["cancel"].is_set():
