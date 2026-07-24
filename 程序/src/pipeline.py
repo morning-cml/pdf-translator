@@ -374,7 +374,8 @@ def translate_pdf(
         report(f"正在翻译… 第 {done}/{total} 批", 0.10 + 0.80 * (done / max(total, 1)))
 
     if texts:
-        translations = translator.translate_texts(texts, glossary, tcb)
+        translations = translator.translate_texts(texts, glossary, tcb,
+                                                  should_cancel=should_cancel)
         translations = [_maybe_pangu(tr, cfg) for tr in translations]  # 中文才加空格
         kept = 0
         for unit, tr in zip(units, translations):

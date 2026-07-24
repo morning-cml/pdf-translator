@@ -145,7 +145,8 @@ def translate_pptx(
     n_done = 0
     if texts:
         results = [_maybe_pangu(t, cfg) for t in
-                   translator.translate_texts(texts, glossary, tcb)]
+                   translator.translate_texts(texts, glossary, tcb,
+                                              should_cancel=should_cancel)]
         check_cancel()
         report("正在写回 PowerPoint…", 0.93)
         for u, tr in zip(units, results):

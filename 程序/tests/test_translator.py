@@ -143,3 +143,30 @@ def test_refresh_cache_ignores_and_overwrites(tmp_path, gloss, texts):
     out = t2.translate_texts(texts, gloss)
     assert t2.cache_hits == 0 and t2.calls > 0, "刷新模式应无视缓存重译"
     assert out == ["译" + t for t in texts]
+
+
+# ---------------- 取消：立即短路，不跑完所有批 ----------------
+def test_cancel_short_circuits_pending_batches(gloss, texts):
+    """取消后，尚未开始的批必须**直接返回原文**、绝不再发起请求。
+
+    旧代码把所有批一次性 submit、退出时 shutdown(wait=True)，导致取消要等全部
+    在途+排队请求跑完才停——用户按了"感觉没反应"。"""
+    t = StubTranslator(batch_size=1, max_workers=4)
+    out = t.translate_texts(texts, gloss, should_cancel=lambda: True)
+    assert t.calls == 0, "全程取消状态下不该真正翻译任何一批"
+    assert out == texts, "未翻译的段回退原文"
+
+
+def test_cancel_midway_leaves_rest_untranslated(gloss):
+    """跑到一半点取消：已开始的可能完成，但剩余批不再翻译。"""
+    flip = {"on": False}
+
+    class Flip(StubTranslator):
+        def _translate_batch(self, batch, gb):
+            flip["on"] = True          # 第一批一跑就请求取消
+            return super()._translate_batch(batch, gb)
+
+    t = Flip(batch_size=1, max_workers=1)
+    out = t.translate_texts([f"p{i}" for i in range(20)], gloss,
+                            should_cancel=lambda: flip["on"])
+    assert t.calls < 20, "取消后不应把 20 批全部翻完"

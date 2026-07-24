@@ -129,7 +129,9 @@ class BaseTranslator:
         texts: List[str],
         glossary: Glossary,
         progress_cb: Optional[Callable[[int, int], None]] = None,
+        should_cancel: Optional[Callable[[], bool]] = None,
     ) -> List[str]:
+        cancelled = should_cancel or (lambda: False)
         # 去重（保留首次出现顺序）；先查内存缓存，再查持久缓存（T1，含占位符校验）
         unique = list(dict.fromkeys(texts))
         todo = []
@@ -147,13 +149,21 @@ class BaseTranslator:
         total = len(batches)
 
         def run(batch):
+            # 取消后仍在队列里、尚未启动的批：直接原样返回，绝不再发起请求。
+            # 这是"取消能立刻见效"的关键——否则所有批已 submit，线程池会把它们
+            # 全部跑完才肯收摊（旧代码用 with 退出即 shutdown(wait=True)）。
+            if cancelled():
+                return list(batch)
             block = glossary.prompt_block(batch)
             return self._translate_batch(batch, block)
 
         if batches:
-            with ThreadPoolExecutor(max_workers=self.max_workers) as ex:
+            ex = ThreadPoolExecutor(max_workers=self.max_workers)
+            try:
                 futures = {ex.submit(run, b): b for b in batches}
                 for fut in as_completed(futures):
+                    if cancelled():
+                        break   # 立即停止收结果，剩余批交给 finally 里的取消
                     batch = futures[fut]
                     # T2 失败降级：单批彻底失败 → 本批各段回退原文并继续，
                     # 绝不让 90% 进度的任务整体报废；失败段不写缓存，重跑可补。
@@ -188,6 +198,10 @@ class BaseTranslator:
                     done += 1
                     if progress_cb:
                         progress_cb(done, total)
+            finally:
+                # wait=False + cancel_futures：不等在途请求跑完、丢弃未启动的批，
+                # 使取消立刻返回（Python 3.9+）。正常跑完时所有批已 done，无副作用。
+                ex.shutdown(wait=False, cancel_futures=True)
         if self.persist is not None:
             self.persist.flush()
         return [self._cache.get(t, t) for t in texts]

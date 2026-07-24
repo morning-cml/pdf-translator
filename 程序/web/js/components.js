@@ -330,6 +330,12 @@ export function initRun() {
 
   $("btn-cancel").addEventListener("click", () => {
     const id = store.get("jobId");
-    if (id) api.cancel(id);
+    if (!id) return;
+    // 立即反馈：禁用按钮 + 文案，别让用户以为"点了没反应"再猛点。
+    // 后端会短路队列中未开始的批、并放弃等待在途请求，通常一两秒内停下。
+    $("btn-cancel").disabled = true;
+    status.textContent = "正在取消…";
+    toast("正在取消…（等当前在途请求返回后停止）");
+    api.cancel(id);
   });
 }

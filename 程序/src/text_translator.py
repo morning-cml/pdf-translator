@@ -371,7 +371,8 @@ def translate_text_file(
     n_done = 0
     if texts:
         results = [_maybe_pangu(t, cfg) for t in
-                   translator.translate_texts(texts, glossary, tcb)]
+                   translator.translate_texts(texts, glossary, tcb,
+                                              should_cancel=should_cancel)]
         check_cancel()
         bilingual = getattr(cfg, "output_mode", "translated") != "translated"
         for seg, tr in zip(units, results):
